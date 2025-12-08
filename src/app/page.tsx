@@ -218,8 +218,29 @@ function getWeekOfMonth(day: string | number, monthName: string, year: string | 
   return romanWeeks[weekNumber - 1] || "";
 }
 
+function formatDate(dateStr: string): string {
+  if (!dateStr) return "-";
 
+  // Jika format range "22-24/mm/yyyy"
+  const rangeMatch = dateStr.match(/^(\d{1,2})(?:-(\d{1,2}))?\/(\d{1,2})\/(\d{4})$/);
+  if (rangeMatch) {
+    const startDay = rangeMatch[1].padStart(2, "0");
+    const endDay = rangeMatch[2]?.padStart(2, "0");
+    const month = rangeMatch[3].padStart(2, "0");
+    const year = rangeMatch[4];
+    return endDay ? `${startDay}-${endDay}/${month}/${year}` : `${startDay}/${month}/${year}`;
+  }
 
+  // Jika format "yyyy-mm-dd"
+  const parts = dateStr.split("-");
+  if (parts.length === 3) {
+    const [y, m, d] = parts;
+    return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${y}`;
+  }
+
+  // Jika format lain, kembalikan apa adanya
+  return dateStr;
+}
 
 export default function AuditApp() {
   const [activePage, setActivePage] = useState("dashboard");
@@ -269,7 +290,7 @@ export default function AuditApp() {
 >(null);
 
   
-
+  const [filterBulan, setFilterBulan] = useState(""); // contoh: "MEI"
   const [teamOptions, setTeamOptions] = useState<string[]>([]);
   const [showSwitchAccount, setShowSwitchAccount] = useState(false);
   const [cabangOptions, setCabangOptions] = useState<Cabang[]>([]);
@@ -2590,7 +2611,7 @@ const { error: planError } = await supabase
   reader.readAsArrayBuffer(file);
 };
 
-// 🔹 Update filter dengan deteksi otomatis On Progress & dukung status Sudah
+// 🔹 Filter & sort Update Plan
 const filteredAndSortedUpdatePlanData = dataList
   .filter((d) => {
     const todayNum = new Date().getDate();
@@ -2598,11 +2619,22 @@ const filteredAndSortedUpdatePlanData = dataList
       .toLocaleString("id-ID", { month: "long" })
       .toUpperCase();
 
+    // === 🔍 DETEKSI BULAN DARI TANGGAL ESTIMASI ===
+    let monthFromTanggal = "";
+    if (d.tanggal) {
+      // Jika tanggal berupa range "22-24", ambil angka pertama
+      const firstDay = parseInt(d.tanggal.split("-")[0].trim(), 10);
+      // Buat tanggal untuk current month agar bisa ambil nama bulan
+      const tempDate = new Date();
+      tempDate.setDate(firstDay);
+      monthFromTanggal = tempDate
+        .toLocaleString("id-ID", { month: "long" })
+        .toUpperCase();
+    }
+
     // === 🔍 AUTO DETECT ON PROGRESS ===
     const isAutoOnProgress =
-      d.bulan?.toUpperCase() === currentMonth &&
-      !!d.tanggal &&
-      isTodayInRange(d.tanggal, todayNum);
+      monthFromTanggal === currentMonth && !!d.tanggal && isTodayInRange(d.tanggal, todayNum);
 
     // === 🔍 FILTER STATUS SESUAI TAB ===
     const matchStatus =
@@ -2612,17 +2644,17 @@ const filteredAndSortedUpdatePlanData = dataList
         ? d.status === "On Progress" || isAutoOnProgress
         : statusTab === "Sudah"
         ? d.status === "Sudah"
-        : // kalau tab "Semua" (statusTab kosong)
-          true;
+        : true; // tab "Semua"
 
-    // === FILTER LAINNYA ===
+    // === 🔍 FILTER BULAN ===
     const matchBulan = selectedBulanUpdatePlan
-      ? d.bulan?.toLowerCase().includes(selectedBulanUpdatePlan.toLowerCase())
+      ? monthFromTanggal.includes(selectedBulanUpdatePlan.toUpperCase())
       : true;
 
+    // === 🔍 FILTER PIC ===
     const matchPic = searchPicUpdatePlan
       ? Array.isArray(d.pic)
-        ? (d.pic as string[]).some((p: string) =>
+        ? d.pic.some((p: string) =>
             p.toLowerCase().includes(searchPicUpdatePlan.toLowerCase())
           )
         : ((d.pic ?? "") as string)
@@ -2630,25 +2662,29 @@ const filteredAndSortedUpdatePlanData = dataList
             .includes(searchPicUpdatePlan.toLowerCase())
       : true;
 
+    // === 🔍 FILTER TANGGAL ===
     const matchTanggal = searchTanggal
       ? (d.tanggal ?? "").toLowerCase().includes(searchTanggal.toLowerCase())
       : true;
 
+    // === 🔍 FILTER TEXT SEARCH ===
     const matchText = searchText
       ? Object.values(d).some((val) =>
           String(val ?? "").toLowerCase().includes(searchText.toLowerCase())
         )
       : true;
 
+    // === 🔍 FILTER KATEGORI ===
     const matchKategori = selectedKategoriUpdatePlan
       ? String((d as any)[selectedKategoriUpdatePlan] || "").trim() !== ""
       : true;
 
+    // === 🔍 FILTER NO LAPORAN ===
     const matchNoLaporanUpdate =
       !filterNoLaporanUpdate ||
       d.no_laporan?.toLowerCase().includes(filterNoLaporanUpdate.toLowerCase());
 
-    // === ✅ Gabungkan semua ===
+    // === ✅ GABUNGKAN SEMUA FILTER ===
     return (
       matchStatus &&
       matchBulan &&
@@ -2659,13 +2695,14 @@ const filteredAndSortedUpdatePlanData = dataList
       matchNoLaporanUpdate
     );
   })
+  // 🔹 SORTING BISA DITAMBAHKAN SESUAI KEBUTUHAN
   .sort((a, b) => {
-    const monthA = getMonthNumber(a.bulan || "");
-    const monthB = getMonthNumber(b.bulan || "");
-
-    // Kalau bulan sama → urutkan dari id terbesar ke kecil
-    if (monthA === monthB) return (b.id ?? 0) - (a.id ?? 0);
-    return monthA - monthB;
+    // Contoh sort berdasarkan tanggal estimasi
+    if (!a.tanggal) return 1;
+    if (!b.tanggal) return -1;
+    const dateA = new Date(a.tanggal.split("-")[0].trim());
+    const dateB = new Date(b.tanggal.split("-")[0].trim());
+    return dateA.getTime() - dateB.getTime();
   });
 
 
@@ -4700,7 +4737,33 @@ useEffect(() => {
     ))}
   </select>
 
-  
+  <select
+  value={filterBulan}
+  onChange={(e) => setFilterBulan(e.target.value)}
+  className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm 
+             focus:ring-2 focus:ring-blue-400 focus:outline-none transition"
+>
+  <option value="">Semua Bulan</option>
+  {[
+    "JANUARI",
+    "FEBRUARI",
+    "MARET",
+    "APRIL",
+    "MEI",
+    "JUNI",
+    "JULI",
+    "AGUSTUS",
+    "SEPTEMBER",
+    "OKTOBER",
+    "NOVEMBER",
+    "DESEMBER",
+  ].map((bln) => (
+    <option key={bln} value={bln}>
+      {bln}
+    </option>
+  ))}
+</select>
+
 
   {/* Filter Kategori */}
   <select
@@ -4921,24 +4984,25 @@ useEffect(() => {
 
 
       
-        {/* Tanggal Estimasi */}
-        <td className="p-2 border border-gray-300 bg-blue-50">
-          {d.tanggal?.trim() ? d.tanggal : "-"}
-        </td>
+     {/* Tanggal Estimasi */}
+<td className="p-2 border border-gray-300 bg-blue-50">
+  {d.tanggal?.trim() ? formatDate(d.tanggal) : d.realisasi ? formatDate(d.realisasi) : "-"}
+</td>
 
-        {/* Tanggal Realisasi */}
-        <td className="p-2 border border-gray-300 bg-green-50">
-          {d.realisasi ? (
-            <div className="flex flex-col">
-              <span>{d.realisasi}</span>
-              <span className="text-xs font-semibold text-gray-700">
-                {d.realisasi_bulan || d.bulan}
-              </span>
-            </div>
-          ) : (
-            "-"
-          )}
-        </td>
+{/* Tanggal Realisasi */}
+<td className="p-2 border border-gray-300 bg-green-50">
+  {d.realisasi ? (
+    <div className="flex flex-col">
+      <span>{formatDate(d.realisasi)}</span>
+      <span className="text-xs font-semibold text-gray-700">
+        {d.realisasi_bulan || d.bulan}
+      </span>
+    </div>
+  ) : (
+    "-"
+  )}
+</td>
+
 
   {/* Minggu */}
         <td className="p-2 border border-gray-300">
