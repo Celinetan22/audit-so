@@ -32,6 +32,7 @@ import "react-datepicker/dist/react-datepicker.css";
 
 
 
+
 import {
   PieChart,
   Pie,
@@ -90,6 +91,10 @@ type AuditData = {
   tanggal: string;
   tanggalAwal?: string;   // ✅ tambah ini
   tanggalAkhir?: string;
+    // TAMBAHKAN INI ⬇⬇⬇
+  tanggal_estimasi_full?: string | null;
+  tanggal_realisasi_full?: string | null;
+  // ⬆⬆⬆
   tahun?: string; 
   realisasi?: string;
   realisasi_bulan?: string; 
@@ -173,6 +178,28 @@ type AuditItem = {
 };
 
 
+interface TimelineProps {
+  start: string; // tanggal estimasi
+  end: string;   // tanggal realisasi
+}
+
+const TimelineBox: React.FC<TimelineProps> = ({ start, end }) => {
+  return (
+    <div className="flex items-center gap-4">
+      {/* Start Date */}
+      <div className="flex items-center justify-between w-[160px] px-3 py-2 bg-gray-100 rounded-lg shadow-sm border border-gray-300">
+        <span className="text-sm font-medium">{start}</span>
+        <span className="text-gray-500 font-semibold">{">"}</span>
+      </div>
+
+      {/* End Date */}
+      <div className="flex items-center justify-between w-[160px] px-3 py-2 bg-gray-100 rounded-lg shadow-sm border border-gray-300">
+        <span className="text-sm font-medium">{end}</span>
+        <span className="text-gray-500 font-semibold">{">"}</span>
+      </div>
+    </div>
+  );
+};
 
 
 function AutoResizeTextarea({
@@ -241,6 +268,62 @@ function formatDate(dateStr: string): string {
   // Jika format lain, kembalikan apa adanya
   return dateStr;
 }
+
+function formatTanggalDisplay(tanggalStr: string) {
+  if (!tanggalStr) return "-";
+
+  const monthNames: Record<string, string> = {
+    "01": "Jan", "02": "Feb", "03": "Mar", "04": "Apr",
+    "05": "Mei", "06": "Jun", "07": "Jul", "08": "Agu",
+    "09": "Sep", "10": "Okt", "11": "Nov", "12": "Des",
+  };
+
+  const [dayPart, month, year] = tanggalStr.split("/");
+
+  const monthName = monthNames[month];
+
+  // range → 22 - 24/01/2025
+  if (dayPart.includes("-")) {
+    const [start, end] = dayPart.split("-").map((v) => v.trim());
+    return `${start} ${monthName} ${year} - ${end} ${monthName} ${year}`;
+  }
+
+  // single → 23/05/2025
+  return `${dayPart} ${monthName} ${year}`;
+}
+
+function formatDateDisplay(dateStr: string): string {
+  if (!dateStr) return "-";
+
+  const bulanNama: Record<string, string> = {
+    "01": "Jan",
+    "02": "Feb",
+    "03": "Mar",
+    "04": "Apr",
+    "05": "Mei",
+    "06": "Jun",
+    "07": "Jul",
+    "08": "Agu",
+    "09": "Sep",
+    "10": "Okt",
+    "11": "Nov",
+    "12": "Des",
+  };
+
+  // Range: 22-24/01/2025
+  if (dateStr.includes("-")) {
+    const [range, month, year] = dateStr.split("/");
+    const [start, end] = range.split("-").map((x) => x.padStart(2, "0"));
+    return `${start} ${bulanNama[month]} ${year} - ${end} ${bulanNama[month]} ${year}`;
+  }
+
+  // Single date: 22/01/2025
+  const [day, month, year] = dateStr.split("/");
+  return `${day.padStart(2, "0")} ${bulanNama[month]} ${year}`;
+}
+
+
+
 
 export default function AuditApp() {
   const [activePage, setActivePage] = useState("dashboard");
@@ -1815,28 +1898,46 @@ function getEffectiveStatus(d: AuditData, todayNum: number, currentMonthStr: str
   return "Belum";
 }
 
-const getRealisasiRangeDays = (realisasi?: string) => {
-  if (!realisasi) return null;
 
-  const clean = realisasi.trim();
+const parseDate = (str: string): Date | null => {
+  const parts = str.split("/");
 
-  // ⭐ CASE 1: Single date → 1 hari
+  if (parts.length !== 3) return null;
+
+  const [day, month, year] = parts.map(n => parseInt(n, 10));
+
+  if (!day || !month || !year) return null;
+
+  return new Date(year, month - 1, day);
+};
+
+
+const getRealisasiRangeDays = (fullDate?: string | null) => {
+  if (!fullDate) return null;
+
+  const clean = fullDate.trim();
+
+  // CASE 1: Single date → return 1
   if (!clean.includes("-")) {
-    const num = parseInt(clean, 10);
-    return isNaN(num) ? null : 1;
+    const d = clean.trim();
+    const parsed = parseDate(d);
+    return parsed ? 1 : null;
   }
 
-  // ⭐ CASE 2: Range date → hitung selisih
-  const match = clean.match(/(\d+)\s*-\s*(\d+)/);
-  if (!match) return null;
+  // CASE 2: Range → "22/01/2025 - 24/01/2025"
+  const [startStr, endStr] = clean.split("-").map(s => s.trim());
 
-  const start = parseInt(match[1], 10);
-  const end = parseInt(match[2], 10);
+  const startDate = parseDate(startStr);
+  const endDate = parseDate(endStr);
 
-  if (isNaN(start) || isNaN(end)) return null;
+  if (!startDate || !endDate) return null;
 
-  return end - start + 1;
+  const diffMs = endDate.getTime() - startDate.getTime();
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+  return diffDays + 1; // termasuk hari pertama
 };
+
 
 
 
@@ -4882,12 +4983,16 @@ useEffect(() => {
         {/* Kolom umum */}
        
      
-        <th className="border border-gray-200 p-2 bg-blue-50 font-medium">
-          Tanggal Estimasi
-        </th>
-        <th className="border border-gray-200 p-2 bg-green-50 font-medium">
-          Tanggal Realisasi
-        </th>
+<th className="border border-gray-200 p-2 bg-blue-50 font-medium min-w-[220px] text-center">
+  Tanggal Estimasi
+</th>
+
+<th className="border border-gray-200 p-2 bg-green-50 font-medium min-w-[220px] text-center">
+  Tanggal Realisasi
+</th>
+
+
+
            <th className="border border-gray-200 p-2">Minggu</th>
        {/* 🌟 KOLUM BARU: RANGE HARI */}
 <th className="border border-gray-200 p-2 bg-yellow-50 font-medium">
@@ -4985,23 +5090,39 @@ useEffect(() => {
 
       
      {/* Tanggal Estimasi */}
-<td className="p-2 border border-gray-300 bg-blue-50">
-  {d.tanggal?.trim() ? formatDate(d.tanggal) : d.realisasi ? formatDate(d.realisasi) : "-"}
-</td>
+<td className="p-2 border border-gray-300">
+  {d.tanggal_estimasi_full ? (
+<div className="flex items-center justify-center w-full">
 
-{/* Tanggal Realisasi */}
-<td className="p-2 border border-gray-300 bg-green-50">
-  {d.realisasi ? (
-    <div className="flex flex-col">
-      <span>{formatDate(d.realisasi)}</span>
-      <span className="text-xs font-semibold text-gray-700">
-        {d.realisasi_bulan || d.bulan}
-      </span>
+      <div className="w-[180px] px-3 py-2 bg-gray-100 rounded-xl border border-gray-200 shadow-sm text-center">
+        <span className="text-sm font-medium text-gray-800">
+          {formatDateDisplay(d.tanggal_estimasi_full)}
+        </span>
+      </div>
     </div>
   ) : (
     "-"
   )}
 </td>
+
+
+{/* Tanggal Realisasi */}
+<td className="p-2 border border-gray-300">
+  {d.tanggal_realisasi_full ? (
+    <div className="flex items-center justify-center w-full">
+      <div className="w-[180px] px-3 py-2 bg-gray-100 rounded-xl border border-gray-200 shadow-sm text-center">
+        <span className="text-sm font-medium text-gray-800">
+          {formatDateDisplay(d.tanggal_realisasi_full)}
+        </span>
+      </div>
+    </div>
+  ) : (
+    "-"
+  )}
+</td>
+
+
+
 
 
   {/* Minggu */}
@@ -5010,12 +5131,13 @@ useEffect(() => {
         </td>
 
 
-        {/* Range Hari */}
-        <td className="p-2 border border-gray-300 bg-yellow-50 font-semibold">
-          {getRealisasiRangeDays(d.realisasi)
-            ? `${getRealisasiRangeDays(d.realisasi)} hari`
-            : "-"}
-        </td>
+{/* Range Hari */}
+<td className="p-2 border border-gray-300 bg-yellow-50 font-semibold">
+  {getRealisasiRangeDays(d.tanggal_realisasi_full)
+    ? `${getRealisasiRangeDays(d.tanggal_realisasi_full)} hari`
+    : "-"}
+</td>
+
 
 
 
