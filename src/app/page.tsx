@@ -1939,6 +1939,133 @@ const getRealisasiRangeDays = (fullDate?: string | null) => {
 };
 
 
+function normalizeMonth(value?: string | null): string {
+  if (!value) return "";
+
+  const v = value.toLowerCase().trim();
+
+  const map: Record<string, string> = {
+    jan: "JANUARI",
+    januari: "JANUARI",
+    feb: "FEBRUARI",
+    februari: "FEBRUARI",
+    mar: "MARET",
+    maret: "MARET",
+    apr: "APRIL",
+    april: "APRIL",
+    mei: "MEI",
+    may: "MEI",
+    jun: "JUNI",
+    juni: "JUNI",
+    jul: "JULI",
+    juli: "JULI",
+    aug: "AGUSTUS",
+    agustus: "AGUSTUS",
+    sep: "SEPTEMBER",
+    september: "SEPTEMBER",
+    okt: "OKTOBER",
+    oct: "OKTOBER",
+    oktober: "OKTOBER",
+    nov: "NOVEMBER",
+    november: "NOVEMBER",
+    des: "DESEMBER",
+    dec: "DESEMBER",
+    desember: "DESEMBER",
+    december: "DESEMBER",
+  };
+
+  return map[v] || v.toUpperCase();
+}
+
+function getMonthFromTanggalEstimasi(value?: string | null): string {
+  if (!value) return "";
+
+  // Harapkan format: "22/01/2025" atau "22-24/01/2025" (atau terkadang "22/1/2025")
+  // normalisasi: ubah semua spasi, lalu ambil bagian bulan
+  const clean = value.trim();
+
+  // cari pola /MM/ atau /M/ di tengah (contoh: 22/01/2025 atau 22/1/2025)
+  const regex = /\/\s*0?(\d{1,2})\s*\//;
+  const match = clean.match(regex);
+
+  if (!match) {
+    // coba cari setelah '-' jika format "22-24/01/2025"
+    const regex2 = /\/\s*0?(\d{1,2})\s*$/;
+    const match2 = clean.match(regex2);
+    if (match2) {
+      const m = match2[1].padStart(2, "0");
+      return monthNumToName(m);
+    }
+    return "";
+  }
+
+  const monthNum = match[1].padStart(2, "0");
+  return monthNumToName(monthNum);
+}
+
+function monthNumToName(mm: string): string {
+  const map: Record<string, string> = {
+    "01": "JANUARI",
+    "02": "FEBRUARI",
+    "03": "MARET",
+    "04": "APRIL",
+    "05": "MEI",
+    "06": "JUNI",
+    "07": "JULI",
+    "08": "AGUSTUS",
+    "09": "SEPTEMBER",
+    "10": "OKTOBER",
+    "11": "NOVEMBER",
+    "12": "DESEMBER",
+  };
+  return map[mm] || "";
+}
+
+function normalizeMonthInput(v?: string | null): string {
+  if (!v) return "";
+  // jika user memilih "Jan" / "January" / "JANUARI" / "01" — kita dukung beberapa bentuk
+  const s = v.toString().trim().toLowerCase();
+  // nomor bulan?
+  if (/^\d{1,2}$/.test(s)) {
+    return monthNumToName(s.padStart(2, "0"));
+  }
+
+  // nama pendek / panjang
+  const map: Record<string, string> = {
+    jan: "JANUARI",
+    januari: "JANUARI",
+    january: "JANUARI",
+    feb: "FEBRUARI",
+    februari: "FEBRUARI",
+    mar: "MARET",
+    maret: "MARET",
+    apr: "APRIL",
+    april: "APRIL",
+    mei: "MEI",
+    may: "MEI",
+    jun: "JUNI",
+    juni: "JUNI",
+    jul: "JULI",
+    juli: "JULI",
+    aug: "AGUSTUS",
+    agustus: "AGUSTUS",
+    sep: "SEPTEMBER",
+    sept: "SEPTEMBER",
+    september: "SEPTEMBER",
+    okt: "OKTOBER",
+    oct: "OKTOBER",
+    october: "OKTOBER",
+    oktober: "OKTOBER",
+    nov: "NOVEMBER",
+    november: "NOVEMBER",
+    des: "DESEMBER",
+    dec: "DESEMBER",
+    desember: "DESEMBER",
+    december: "DESEMBER",
+  };
+
+  return map[s] || s.toUpperCase();
+}
 
 
 const filteredStatusPlanData = dataList.filter((d) => {
@@ -1991,6 +2118,10 @@ if (statusTab === "On Progress") {
 
   return matchStatus && matchPic && matchBulan && matchText;
 });
+
+
+
+
 
 const todayNum = new Date().getDate();
 const currentMonthStr = new Date()
@@ -2712,107 +2843,116 @@ const { error: planError } = await supabase
   reader.readAsArrayBuffer(file);
 };
 
-// 🔹 Filter & sort Update Plan
 const filteredAndSortedUpdatePlanData = dataList
   .filter((d) => {
-    const todayNum = new Date().getDate();
-    const currentMonth = new Date()
-      .toLocaleString("id-ID", { month: "long" })
-      .toUpperCase();
-
-    // === 🔍 DETEKSI BULAN DARI TANGGAL ESTIMASI ===
-    let monthFromTanggal = "";
-    if (d.tanggal) {
-      // Jika tanggal berupa range "22-24", ambil angka pertama
-      const firstDay = parseInt(d.tanggal.split("-")[0].trim(), 10);
-      // Buat tanggal untuk current month agar bisa ambil nama bulan
-      const tempDate = new Date();
-      tempDate.setDate(firstDay);
-      monthFromTanggal = tempDate
+    try {
+      const todayNum = new Date().getDate();
+      const currentMonth = new Date()
         .toLocaleString("id-ID", { month: "long" })
         .toUpperCase();
-    }
 
-    // === 🔍 AUTO DETECT ON PROGRESS ===
-    const isAutoOnProgress =
-      monthFromTanggal === currentMonth && !!d.tanggal && isTodayInRange(d.tanggal, todayNum);
+      // AMBIL BULAN DARI tanggal_estimasi_full (fallback ke d.estimasi atau d.bulan jika kosong)
+      let monthFromEstimasiFull = getMonthFromTanggalEstimasi(d.tanggal_estimasi_full);
+      if (!monthFromEstimasiFull) {
+        // fallback: kalau ada field estimasi yang berupa "jan" / "Januari"
+        monthFromEstimasiFull = normalizeMonthInput((d as any).estimasi || d.bulan || "");
+      }
 
-    // === 🔍 FILTER STATUS SESUAI TAB ===
-    const matchStatus =
-      statusTab === "Belum"
-        ? d.status === "Belum"
-        : statusTab === "On Progress"
-        ? d.status === "On Progress" || isAutoOnProgress
-        : statusTab === "Sudah"
-        ? d.status === "Sudah"
-        : true; // tab "Semua"
+      // AUTO ON PROGRESS
+      const isAutoOnProgress =
+        monthFromEstimasiFull === currentMonth &&
+        !!d.tanggal &&
+        isTodayInRange(d.tanggal, todayNum);
 
-    // === 🔍 FILTER BULAN ===
-    const matchBulan = selectedBulanUpdatePlan
-      ? monthFromTanggal.includes(selectedBulanUpdatePlan.toUpperCase())
-      : true;
+      // STATUS TAB
+      const matchStatus =
+        statusTab === "Belum"
+          ? d.status === "Belum"
+          : statusTab === "On Progress"
+          ? d.status === "On Progress" || isAutoOnProgress
+          : statusTab === "Sudah"
+          ? d.status === "Sudah"
+          : true;
 
-    // === 🔍 FILTER PIC ===
-    const matchPic = searchPicUpdatePlan
-      ? Array.isArray(d.pic)
-        ? d.pic.some((p: string) =>
-            p.toLowerCase().includes(searchPicUpdatePlan.toLowerCase())
+      // FILTER BULAN: normalisasi input selectedBulanUpdatePlan
+      const normSelectedBulan = normalizeMonthInput(selectedBulanUpdatePlan);
+
+      const matchBulan = normSelectedBulan
+        ? monthFromEstimasiFull === normSelectedBulan
+        : true;
+
+      // PIC
+      const matchPic = searchPicUpdatePlan
+        ? Array.isArray(d.pic)
+          ? d.pic.some((p: string) =>
+              p.toLowerCase().includes(searchPicUpdatePlan.toLowerCase())
+            )
+          : ((d.pic ?? "") as string)
+              .toLowerCase()
+              .includes(searchPicUpdatePlan.toLowerCase())
+        : true;
+
+      // TANGGAL
+      const matchTanggal = searchTanggal
+        ? (d.tanggal ?? "").toLowerCase().includes(searchTanggal.toLowerCase())
+        : true;
+
+      // TEXT SEARCH (hati-hati: Object.values bisa punya object -- stringify aman)
+      const matchText = searchText
+        ? Object.values(d).some((val) =>
+            String(val ?? "").toLowerCase().includes(searchText.toLowerCase())
           )
-        : ((d.pic ?? "") as string)
-            .toLowerCase()
-            .includes(searchPicUpdatePlan.toLowerCase())
-      : true;
+        : true;
 
-    // === 🔍 FILTER TANGGAL ===
-    const matchTanggal = searchTanggal
-      ? (d.tanggal ?? "").toLowerCase().includes(searchTanggal.toLowerCase())
-      : true;
+      // KATEGORI
+      const matchKategori = selectedKategoriUpdatePlan
+        ? String((d as any)[selectedKategoriUpdatePlan] || "").trim() !== ""
+        : true;
 
-    // === 🔍 FILTER TEXT SEARCH ===
-    const matchText = searchText
-      ? Object.values(d).some((val) =>
-          String(val ?? "").toLowerCase().includes(searchText.toLowerCase())
-        )
-      : true;
+      // NO LAPORAN
+      const matchNoLaporanUpdate =
+        !filterNoLaporanUpdate ||
+        (d.no_laporan ?? "").toLowerCase().includes(filterNoLaporanUpdate.toLowerCase());
 
-    // === 🔍 FILTER KATEGORI ===
-    const matchKategori = selectedKategoriUpdatePlan
-      ? String((d as any)[selectedKategoriUpdatePlan] || "").trim() !== ""
-      : true;
-
-    // === 🔍 FILTER NO LAPORAN ===
-    const matchNoLaporanUpdate =
-      !filterNoLaporanUpdate ||
-      d.no_laporan?.toLowerCase().includes(filterNoLaporanUpdate.toLowerCase());
-
-    // === ✅ GABUNGKAN SEMUA FILTER ===
-    return (
-      matchStatus &&
-      matchBulan &&
-      matchPic &&
-      matchTanggal &&
-      matchText &&
-      matchKategori &&
-      matchNoLaporanUpdate
-    );
+      return (
+        matchStatus &&
+        matchBulan &&
+        matchPic &&
+        matchTanggal &&
+        matchText &&
+        matchKategori &&
+        matchNoLaporanUpdate
+      );
+    } catch (err) {
+      console.error("Filter error for row:", d, err);
+      return false;
+    }
   })
-  // 🔹 SORTING BISA DITAMBAHKAN SESUAI KEBUTUHAN
   .sort((a, b) => {
-    // Contoh sort berdasarkan tanggal estimasi
-    if (!a.tanggal) return 1;
-    if (!b.tanggal) return -1;
-    const dateA = new Date(a.tanggal.split("-")[0].trim());
-    const dateB = new Date(b.tanggal.split("-")[0].trim());
-    return dateA.getTime() - dateB.getTime();
+    // parsing tanggal_estimasi_full aman (fallback ke tanggal jika kosong)
+    const parseDateSafe = (val?: string | null) => {
+      if (!val) return null;
+      // format "22/01/2025" atau "22-24/01/2025"
+      const parts = val.split("/");
+      if (parts.length < 3) return null;
+      const dayPart = parts[0].includes("-") ? parts[0].split("-")[0] : parts[0];
+      const d = Number(dayPart);
+      const m = Number(parts[1]) - 1;
+      const y = Number(parts[2]);
+      if (!y || isNaN(m) || isNaN(d)) return null;
+      return new Date(y, m, d);
+    };
+
+    const da = parseDateSafe(a.tanggal_estimasi_full) || parseDateSafe(a.tanggal) || new Date(0);
+    const db = parseDateSafe(b.tanggal_estimasi_full) || parseDateSafe(b.tanggal) || new Date(0);
+    return da.getTime() - db.getTime();
   });
 
-
-
+// PAGINATION (tetap sama)
 const paginatedUpdatePlanData = filteredAndSortedUpdatePlanData.slice(
   (currentPageUpdate - 1) * rowsPerPageUpdate,
   currentPageUpdate * rowsPerPageUpdate
 );
-
 
   // Grouping
   const groupedByCabang = dataList.reduce(
@@ -4838,9 +4978,9 @@ useEffect(() => {
     ))}
   </select>
 
-  <select
-  value={filterBulan}
-  onChange={(e) => setFilterBulan(e.target.value)}
+ <select
+  value={selectedBulanUpdatePlan}
+  onChange={(e) => setSelectedBulanUpdatePlan(e.target.value)}
   className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm 
              focus:ring-2 focus:ring-blue-400 focus:outline-none transition"
 >
@@ -4864,6 +5004,7 @@ useEffect(() => {
     </option>
   ))}
 </select>
+
 
 
   {/* Filter Kategori */}
