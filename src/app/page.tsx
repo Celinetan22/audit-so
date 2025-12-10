@@ -2583,25 +2583,29 @@ const exportToExcel = () => {
     return;
   }
 
-  // 1️⃣ Mapping data export
-  const exportData = filteredData.map((d) => ({
-    No_Laporan: d.no_laporan || "",
-    PIC: Array.isArray(d.pic) ? d.pic.join(", ") : d.pic || "",
-    Bulan: d.bulan || "",
-    Minggu: d.minggu || "",
-    Tanggal: d.tanggal || "",
-    Realisasi: d.realisasi || "",
-    Company: d.company || "",
-    Jabodetabek: d.jabodetabek || "",
-    Luar_Jabodetabek: d.luarJabodetabek || "",
-    Cabang: d.cabang || "",
-    Warehouse: d.warehouse || "",
-    Tradisional: d.tradisional || "",
-    Modern: d.modern || "",
-    WH_Z: d.whz || "",
-    Deskripsi: d.description || "",
-    Status: d.status || "Belum",
-  }));
+const exportData = filteredData.map((d) => ({
+  "No Laporan": d.no_laporan || "",
+  "Tanggal Estimasi": d.tanggal_estimasi_full || "",
+  "Realisasi": d.tanggal_realisasi_full || "",
+  "Minggu": d.minggu || "",
+  "Range Hari": getRealisasiRangeDays(d.tanggal_realisasi_full)
+    ? `${getRealisasiRangeDays(d.tanggal_realisasi_full)} hari`
+    : "",
+  "PIC": Array.isArray(d.pic) ? d.pic.join(", ") : d.pic || "",
+  "Team": Array.isArray(d.team) ? d.team.join(", ") : d.team || "",
+  "Perusahaan": d.company || "",
+  "Jabodetabek": d.jabodetabek || "",
+  "Luar Jabodetabek": d.luarJabodetabek || "",
+  "Cabang": d.cabang || "",
+  "Warehouse": d.warehouse || "",
+  "Traditional": d.tradisional || "",
+  "Modern": d.modern || "",
+  "WH-Z": d.whz || "",
+  "Status": d.status || "Belum",
+}));
+
+
+
 
   const ws = XLSX.utils.json_to_sheet(exportData);
   const headerKeys = Object.keys(exportData[0]);
