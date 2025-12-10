@@ -6062,12 +6062,17 @@ useEffect(() => {
     <div className="w-full max-w-[1600px] bg-white rounded-2xl shadow-lg border border-slate-200 px-10 py-8 transition overflow-x-auto">
       <div className="min-w-[1200px]">
       {/* === Header === */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-        <h2 className="text-3xl font-bold text-slate-800">Status Plan</h2>
-        <p className="mt-2 text-slate-600 text-sm italic">
-   Detail Data berada di halaman Update Plan SO
-  </p>
-      </div>
+    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-8">
+  <div>
+    <h2 className="text-3xl font-bold tracking-tight text-slate-800">
+      Status Plan
+    </h2>
+    <p className="text-sm text-slate-500 mt-1 italic">
+      Detail data tersedia di halaman Update Plan SO
+    </p>
+  </div>
+</div>
+
 
 {/* === Tabs dengan Badge Jumlah (fix perhitungan) === */}
 <div className="flex justify-center mb-8">
@@ -6101,32 +6106,36 @@ useEffect(() => {
     ];
 
     return tabs.map((tab) => (
-      <button
-        key={tab.label}
-        onClick={() => setStatusTab(tab.label as "On Progress" | "Belum" | "Sudah")}
-        className={`relative flex items-center gap-2 px-6 py-2.5 mx-2 text-sm font-semibold rounded-full transition-all duration-200 shadow-sm
-          ${
-            statusTab === tab.label
-              ? `${tab.color} text-white shadow-md scale-105`
-              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-          }`}
-      >
-        {tab.label}
-        <span
-          className={`px-2.5 py-0.5 text-xs rounded-full font-bold ${
-            statusTab === tab.label ? "bg-white text-slate-800" : "bg-slate-300 text-slate-700"
-          }`}
-        >
-          {tab.count}
-        </span>
-      </button>
+     <button
+  key={tab.label}
+  onClick={() => setStatusTab(tab.label as "On Progress" | "Belum" | "Sudah")}
+  className={`relative flex items-center gap-2 px-6 py-2.5 mx-2 text-sm font-semibold rounded-full transition-all duration-300
+    ${
+      statusTab === tab.label
+        ? `${tab.color} text-white shadow-lg scale-105`
+        : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-100"
+    }`}
+>
+  {tab.label}
+  <span
+    className={`px-2.5 py-0.5 text-xs rounded-full font-bold ${
+      statusTab === tab.label
+        ? "bg-white text-slate-800"
+        : "bg-slate-200 text-slate-700"
+    }`}
+  >
+    {tab.count}
+  </span>
+</button>
+
     ));
   })()}
 </div>
 
 
     {/* === Filter Section === */}
-    <div className="flex flex-wrap items-center gap-3 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
+   <div className="flex flex-wrap items-center gap-3 mb-6 bg-white/70 backdrop-blur-md p-4 rounded-2xl border border-slate-200 shadow-sm">
+
       <select
         value={searchPicStatusPlan}
         onChange={(e) => setSearchPicStatusPlan(e.target.value)}
@@ -6158,97 +6167,155 @@ useEffect(() => {
         placeholder="Cari data..."
         value={searchTextStatusPlan}
         onChange={(e) => setSearchTextStatusPlan(e.target.value)}
-        className="ml-auto border border-slate-300 rounded-lg px-3 py-2 w-full md:w-1/3 focus:ring-2 focus:ring-blue-500 outline-none"
+       className="border border-slate-300 rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+
       />
     </div>
 
     {/* === TABLE === */}
     <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm max-h-[750px]">
-      <table className="min-w-full text-sm text-slate-700 border-collapse">
+     <table className="w-full text-sm text-slate-700 border-collapse">
+
         {/* Header */}
-        <thead className="bg-slate-100 sticky top-0 z-50 border-b border-slate-300">
-          <tr className="text-center font-semibold text-slate-800">
-            <th className="px-4 py-3">Bulan</th>
-            <th className="px-4 py-3">Minggu</th>
-            <th className="px-4 py-3">Tanggal Plan</th>
-            <th className="px-4 py-3">Tanggal Realisasi</th>
-            <th
-              className="px-4 py-3 sticky left-0 bg-yellow-200 z-40 font-bold text-slate-900 rounded-l-lg"
-            >
-              PIC
-            </th>
-            <th className="px-4 py-3">Perusahaan</th>
-            <th className="px-4 py-3">Jabodetabek</th>
-            <th className="px-4 py-3">Luar Jabo</th>
-            <th className="px-4 py-3">Cabang</th>
-            <th className="px-4 py-3">Warehouse</th>
-            <th className="px-4 py-3">Tradisional</th>
-            <th className="px-4 py-3">Modern</th>
-            <th className="px-4 py-3">WH-Z</th>
-            <th className="px-4 py-3">No Laporan</th>
-            <th className="px-4 py-3">Status</th>
-          </tr>
-        </thead>
+<thead className="sticky top-0 z-50 bg-slate-100/95 backdrop-blur border-b-2 border-slate-300 shadow-sm">
+  <tr className="text-center">
+    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-600">Bulan</th>
+    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-600">Minggu</th>
+    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-600">Tanggal Plan</th>
+    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-600">Tanggal Realisasi</th>
 
-        {/* Body */}
-        <tbody className="divide-y divide-slate-200">
-          {paginatedStatusPlanData.length === 0 ? (
-            <tr>
-              <td colSpan={15} className="text-center py-8 text-slate-500 italic">
-                Tidak ada data {statusTab}.
-              </td>
-            </tr>
-          ) : (
-            paginatedStatusPlanData.map((d, i) => (
-              <tr
-                key={d.id || i}
-                className={`text-center transition-colors ${
-                  i % 2 === 0 ? "bg-white" : "bg-slate-50"
-                } hover:bg-blue-50`}
-              >
-                <td className="px-4 py-2">{d.bulan}</td>
-                <td className="px-4 py-2">{d.minggu}</td>
-<td className="px-4 py-2">{d.tanggal}</td>
-<td className="px-4 py-2">{d.realisasi || "-"}</td>
+{/* Sticky PIC */}
+<th className="px-4 py-3 sticky left-0 bg-yellow-200 text-slate-900 z-50 font-bold 
+  shadow-[4px_0_10px_-4px_rgba(0,0,0,0.35)] border-r border-yellow-300">
+  PIC
+</th>
 
-<td className="px-4 py-2 sticky left-0 bg-white z-40 font-semibold text-left">
-  {Array.isArray(d.pic) ? d.pic.join(", ") : d.pic}
+{/* Sticky TEAM */}
+<th className="px-4 py-3 sticky left-[140px] bg-blue-100 text-slate-900 z-40 font-bold
+  shadow-[4px_0_10px_-4px_rgba(0,0,0,0.25)] border-r border-blue-200">
+  TEAM
+</th>
+
+
+
+    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-600">Perusahaan</th>
+    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-600">Jabodetabek</th>
+    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-600">Luar Jabo</th>
+    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-600">Cabang</th>
+    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-600">Warehouse</th>
+    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-600">Tradisional</th>
+    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-600">Modern</th>
+    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-600">WH-Z</th>
+    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-600">No Laporan</th>
+    <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-600">Status</th>
+  </tr>
+</thead>
+
+
+<tbody className="divide-y divide-slate-200">
+  {paginatedStatusPlanData.length === 0 ? (
+    <tr>
+      <td colSpan={15} className="text-center py-12 text-slate-400 italic">
+        Tidak ada data {statusTab}.
+      </td>
+    </tr>
+  ) : (
+    paginatedStatusPlanData.map((d, i) => (
+      <tr
+        key={d.id || i}
+        className={`text-center transition-all duration-200 ${
+          i % 2 === 0 ? "bg-white" : "bg-slate-50"
+        } hover:bg-blue-50/50`}
+      >
+        <td className="px-4 py-2 whitespace-nowrap text-slate-700">{d.bulan}</td>
+        <td className="px-4 py-2 whitespace-nowrap text-slate-700">{d.minggu}</td>
+        <td className="px-4 py-2 whitespace-nowrap text-slate-700">{d.tanggal}</td>
+        <td className="px-4 py-2 whitespace-nowrap text-slate-700">
+          {d.realisasi || "-"}
+        </td>
+
+<td className="px-4 py-2 sticky left-0 bg-yellow-50/95 backdrop-blur z-40 font-semibold
+  text-left shadow-[4px_0_6px_-4px_rgba(0,0,0,0.1)]">
+  {Array.isArray(d.pic) ? d.pic.join(", ") : d.pic || "-"}
 </td>
 
-                <td className="px-4 py-2">{d.company}</td>
-                <td className="px-4 py-2">{d.jabodetabek}</td>
-                <td className="px-4 py-2">{d.luarJabodetabek}</td>
-                <td className="px-4 py-2">{d.cabang}</td>
-                <td className="px-4 py-2">{d.warehouse}</td>
-                <td className="px-4 py-2">{d.tradisional}</td>
-                <td className="px-4 py-2">{d.modern}</td>
-                <td className="px-4 py-2">{d.whz}</td>
-                <td className="px-4 py-2">{d.no_laporan || "-"}</td>
-                <td className="px-4 py-2 font-semibold text-center">
-                  {d.status === "Sudah" ? (
-                    <span className="text-green-600">Sudah</span>
-                  ) : d.status === "On Progress" ? (
-                    <span className="text-blue-600">On Progress</span>
-                  ) : (
-                    <span className="text-yellow-600">Belum</span>
-                  )}
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
+<td className="px-4 py-2 sticky left-[140px] bg-blue-50/95 backdrop-blur z-40 font-semibold
+  text-left shadow-[4px_0_10px_-4px_rgba(0,0,0,0.15)]">
+  {Array.isArray(d.team) ? d.team.join(", ") : d.team || "-"}
+</td>
+
+
+        <td className="px-4 py-2 whitespace-nowrap text-slate-700">{d.company}</td>
+        <td className="px-4 py-2 whitespace-nowrap text-slate-700">{d.jabodetabek}</td>
+        <td className="px-4 py-2 whitespace-nowrap text-slate-700">{d.luarJabodetabek}</td>
+        <td className="px-4 py-2 whitespace-nowrap text-slate-700">{d.cabang}</td>
+        <td className="px-4 py-2 whitespace-nowrap text-slate-700">{d.warehouse}</td>
+        <td className="px-4 py-2 whitespace-nowrap text-slate-700">{d.tradisional}</td>
+        <td className="px-4 py-2 whitespace-nowrap text-slate-700">{d.modern}</td>
+        <td className="px-4 py-2 whitespace-nowrap text-slate-700">{d.whz}</td>
+        <td className="px-4 py-2 whitespace-nowrap text-slate-700 font-medium">
+          {d.no_laporan || "-"}
+        </td>
+
+        <td className="px-4 py-2 text-center">
+          <span
+            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold
+              ${
+                d.status === "Sudah"
+                  ? "bg-green-100 text-green-700"
+                  : d.status === "On Progress"
+                  ? "bg-blue-100 text-blue-700"
+                  : "bg-yellow-100 text-yellow-700"
+              }`}
+          >
+            {d.status === "Sudah"
+              ? "Sudah"
+              : d.status === "On Progress"
+              ? "On Progress"
+              : "Belum"}
+          </span>
+        </td>
+      </tr>
+    ))
+  )}
+</tbody>
+
       </table>
     </div>
     
-{/* === Pagination Bawah === */}
+{/* === Pagination + Info Bawah === */}
 {filteredStatusPlanData.length > rowsPerPageStatus && (
-  <EllipsisPagination
-    currentPage={currentPageStatus}
-    totalRows={filteredStatusPlanData.length}
-    rowsPerPage={rowsPerPageStatus}
-    onPageChange={setCurrentPageStatus}
-  />
+  <div className="mt-4 flex justify-between items-center">
+    {/* Kiri: Info jumlah tampil */}
+    <div className="text-sm text-slate-500">
+      Menampilkan{" "}
+      <span className="font-semibold text-slate-700">
+        {(currentPageStatus - 1) * rowsPerPageStatus + 1}
+      </span>
+      {" - "}
+      <span className="font-semibold text-slate-700">
+        {Math.min(
+          currentPageStatus * rowsPerPageStatus,
+          filteredStatusPlanData.length
+        )}
+      </span>{" "}
+      dari{" "}
+      <span className="font-semibold text-slate-700">
+        {filteredStatusPlanData.length}
+      </span>{" "}
+      data
+    </div>
+
+    {/* Kanan: Pagination */}
+    <EllipsisPagination
+      currentPage={currentPageStatus}
+      totalRows={filteredStatusPlanData.length}
+      rowsPerPage={rowsPerPageStatus}
+      onPageChange={setCurrentPageStatus}
+    />
+  </div>
 )}
+
   </div>
   </div>
   </div>

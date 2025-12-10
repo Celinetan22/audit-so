@@ -16,65 +16,80 @@ export default function EllipsisPagination({
   onPageChange,
 }: PaginationProps) {
   const totalPages = Math.ceil(totalRows / rowsPerPage);
-
   if (totalPages <= 1) return null;
 
   const pageNumbers: (number | string)[] = [];
 
-  // Selalu tampilkan halaman pertama
-  if (currentPage > 3) {
-    pageNumbers.push(1, "…");
+  // First page logic
+  if (currentPage > 2) {
+    pageNumbers.push(1, "dots-left");
   }
 
-  // Halaman sekitar current
+  // Only show current -1, current, current +1
   for (
-    let i = Math.max(1, currentPage - 2);
-    i <= Math.min(totalPages, currentPage + 2);
+    let i = Math.max(1, currentPage - 1);
+    i <= Math.min(totalPages, currentPage + 1);
     i++
   ) {
     pageNumbers.push(i);
   }
 
-  // Selalu tampilkan halaman terakhir
-  if (currentPage < totalPages - 2) {
-    pageNumbers.push("…", totalPages);
+  // Last page logic
+  if (currentPage < totalPages - 1) {
+    pageNumbers.push("dots-right", totalPages);
   }
 
   return (
-    <div className="flex justify-center items-center gap-2 mt-6 select-none">
+    <div className="flex items-center gap-2 select-none">
       {/* Prev */}
       <button
         disabled={currentPage === 1}
         onClick={() => onPageChange(currentPage - 1)}
-        className="flex items-center gap-1 px-3 py-1.5 border rounded-full text-sm transition 
+        className="
+          w-10 h-10 rounded-full border border-slate-200
+          flex items-center justify-center
+          bg-white text-slate-600
           disabled:opacity-40 disabled:cursor-not-allowed
-          hover:bg-gray-100"
+          hover:bg-blue-50 hover:border-blue-200
+          transition-all duration-200
+        "
       >
-        <ChevronLeft size={16} /> Prev
+        <ChevronLeft size={18} />
       </button>
 
-      {/* Page numbers */}
+      {/* Page Numbers */}
       {pageNumbers.map((p, i) =>
         typeof p === "number" ? (
           <button
             key={i}
             onClick={() => onPageChange(p)}
-            className={`px-3 py-1.5 min-w-[36px] rounded-full border text-sm transition 
+            className={`
+              w-10 h-10 rounded-full
+              flex items-center justify-center
+              text-sm font-bold transition-all duration-200
               ${
                 p === currentPage
-                  ? "bg-blue-600 text-white border-blue-600"
-                  : "hover:bg-gray-100 border-gray-300"
-              }`}
+                  ? "bg-blue-600 text-white shadow-md shadow-blue-200 scale-105"
+                  : "bg-white text-slate-600 border border-slate-200 hover:bg-blue-50"
+              }
+            `}
           >
             {p}
           </button>
         ) : (
-          <span
-            key={i}
-            className="px-2 py-1 text-gray-500"
-          >
-            {p}
-          </span>
+         <span
+  key={i}
+  className="
+    px-2
+    text-slate-400
+    text-sm
+    font-bold
+    select-none
+  "
+>
+  …
+</span>
+
         )
       )}
 
@@ -82,11 +97,16 @@ export default function EllipsisPagination({
       <button
         disabled={currentPage === totalPages}
         onClick={() => onPageChange(currentPage + 1)}
-        className="flex items-center gap-1 px-3 py-1.5 border rounded-full text-sm transition 
+        className="
+          w-10 h-10 rounded-full border border-slate-200
+          flex items-center justify-center
+          bg-white text-slate-600
           disabled:opacity-40 disabled:cursor-not-allowed
-          hover:bg-gray-100"
+          hover:bg-blue-50 hover:border-blue-200
+          transition-all duration-200
+        "
       >
-        Next <ChevronRight size={16} />
+        <ChevronRight size={18} />
       </button>
     </div>
   );
