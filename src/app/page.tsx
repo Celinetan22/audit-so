@@ -1001,7 +1001,10 @@ const progress = total > 0 ? Math.round((selesai / total) * 100) : 0;
 
 // Ranking PIC
 const picCount: Record<string, number> = {};
-dataList.forEach(d => d.pic.forEach(p => { picCount[p] = (picCount[p] || 0) + 1; }));
+dataList.forEach(d => (d.team || []).forEach(p => {
+  picCount[p] = (picCount[p] || 0) + 1;
+}));
+
 const topPic = Object.entries(picCount).sort((a, b) => b[1] - a[1]).slice(0, 3);
 
 // Ranking Cabang
@@ -1748,16 +1751,34 @@ const handleSubmitAll = async (e: React.FormEvent) => {
 
       const lastNumber =
         existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
+
       const nextNumber = String(lastNumber + 1).padStart(3, "0");
       const noLaporan = `${prefix}/${year}/${monthNum}/${nextNumber}`;
 
-      // === Gabungkan tanggal awal dan akhir biar tidak kosong
+      // === Gabungkan tanggal awal dan akhir tampilannya
       const tanggalGabung =
         form.tanggalAwal && form.tanggalAkhir
           ? `${form.tanggalAwal} - ${form.tanggalAkhir}`
           : form.tanggalAwal || form.tanggalAkhir || "";
 
-      // === Gabungkan PIC dan custom PIC manual
+      // === Build tanggal_estimasi_full (YYYY-MM-DD s/d YYYY-MM-DD)
+      let tanggalEstimasiFull = null;
+      if (form.tanggalAwal && form.tanggalAkhir) {
+        const bulanNum = String(monthIndex + 1).padStart(2, "0");
+        const tahunFull = form.tahun;
+
+        const start = `${tahunFull}-${bulanNum}-${String(
+          form.tanggalAwal
+        ).padStart(2, "0")}`;
+
+        const end = `${tahunFull}-${bulanNum}-${String(
+          form.tanggalAkhir
+        ).padStart(2, "0")}`;
+
+        tanggalEstimasiFull = `${start} s/d ${end}`;
+      }
+
+      // === Gabungkan PIC dan custom PIC
       const allPIC = [
         ...form.pic,
         ...(form.customPic
@@ -1765,16 +1786,24 @@ const handleSubmitAll = async (e: React.FormEvent) => {
           : []),
       ];
 
+      // === Team: kalau 1 PIC → masuk, kalau >1 → kosong
+      const finalTeam = allPIC.length === 1 ? allPIC : [];
+
       // === 💾 Simpan ke Supabase
       const { data, error } = await supabase
         .from("audit_full")
         .insert([
           {
             no_laporan: noLaporan,
-            pic: allPIC, // ✅ pakai gabungan
+
+            team: finalTeam,
+
             bulan: form.bulan.toUpperCase(),
             minggu: form.minggu,
-            tanggal: tanggalGabung,
+
+            tanggal_estimasi: tanggalGabung,
+            tanggal_estimasi_full: tanggalEstimasiFull, // ⬅️ MASUKKAN DI SINI
+
             tahun: form.tahun,
             jabodetabek: form.jabodetabek,
             luar_jabodetabek: form.luarJabodetabek,
@@ -1801,10 +1830,10 @@ const handleSubmitAll = async (e: React.FormEvent) => {
       const newReport = data?.[0];
       console.log(`✅ Data ${noLaporan} tersimpan`, newReport);
 
-      // ✅ Update state React agar tabel langsung tampil tanpa refresh
+      // Update state React agar tabel langsung tampil
       setDataList((prev) => [newReport, ...prev]);
 
-      // === 🧾 Buat data approval otomatis
+      // === Buat data approval otomatis
       const approvers = ["Aprilia", "NOVIE", "Andreas"];
       const approvalData = approvers.map((name, idx) => ({
         report_id: newReport.id,
@@ -1825,7 +1854,7 @@ const handleSubmitAll = async (e: React.FormEvent) => {
 
     toast.success("✅ Semua data berhasil disimpan!", { id: loadingToast });
 
-    // 🧹 Reset formList setelah semua data tersimpan
+    // 🧹 Reset formList setelah semua data
     setFormList([
       {
         pic: [],
@@ -1847,13 +1876,13 @@ const handleSubmitAll = async (e: React.FormEvent) => {
         status: "Belum",
       },
     ]);
-
-    // await fetchData(); // bisa diaktifkan kalau mau refresh dari server
   } catch (err: any) {
     console.error("❌ Gagal simpan:", err.message || err);
     toast.error("Gagal menyimpan data!", { id: loadingToast });
   }
 };
+
+
 
 
 
@@ -2437,32 +2466,34 @@ const handleSaveEditModal = async (data: any) => {
   // FINAL DATA UNTUK UPDATE DB & UI
   // ========================
 
-  const updatedDataForDB = {
-    minggu: data.minggu || oldData.minggu,
-    tanggal: finalEstimasiDB,
-    realisasi: finalRealisasiDB,
+const updatedDataForDB = {
+  minggu: data.minggu || oldData.minggu,
 
-    pic: combinedPic,
-    team: Array.isArray(data.team) ? data.team : oldData.team,
+  // ✅ FIXED — sesuai struktur tabel
+  tanggal_estimasi: finalEstimasiDB,
+  tanggal_realisasi: finalRealisasiDB,
 
+  pic: combinedPic,
+  team: Array.isArray(data.team) ? data.team : oldData.team,
 
-    jabodetabek: data.jabodetabek ?? oldData.jabodetabek,
-    luar_jabodetabek: data.luarJabodetabek ?? oldData.luarJabodetabek,
-    cabang: data.cabang ?? oldData.cabang,
-    warehouse: data.warehouse ?? oldData.warehouse,
-    tradisional: data.tradisional ?? oldData.tradisional,
-    modern: data.modern ?? oldData.modern,
-    whz: data.whz ?? oldData.whz,
+  jabodetabek: data.jabodetabek ?? oldData.jabodetabek,
+  luar_jabodetabek: data.luarJabodetabek ?? oldData.luarJabodetabek,
+  cabang: data.cabang ?? oldData.cabang,
+  warehouse: data.warehouse ?? oldData.warehouse,
+  tradisional: data.tradisional ?? oldData.tradisional,
+  modern: data.modern ?? oldData.modern,
+  whz: data.whz ?? oldData.whz,
 
-    description: data.description ?? oldData.description,
-    status: data.status ?? oldData.status,
-    company: data.company ?? oldData.company,
+  description: data.description ?? oldData.description,
+  status: data.status ?? oldData.status,
+  company: data.company ?? oldData.company,
 
-    no_laporan: data.no_laporan ?? oldData.no_laporan,
-    uploaded_by: data.uploaded_by ?? oldData.uploaded_by,
+  no_laporan: data.no_laporan ?? oldData.no_laporan,
+  uploaded_by: data.uploaded_by ?? oldData.uploaded_by,
 
-    edited_at: new Date().toISOString(),
-  };
+  edited_at: new Date().toISOString(),
+};
+
 
   try {
     await supabase.from("audit_full").update(updatedDataForDB).eq("id", data.id);
