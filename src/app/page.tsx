@@ -804,35 +804,19 @@ const fetchDataUpdatePlan = async () => {
 
     if (error) throw error;
 
-    setDataList(data || []);
+    // 🔥 FIX: Map snake_case → camelCase
+    const mapped = (data || []).map((item) => ({
+      ...item,
+      luarJabodetabek: item.luar_jabodetabek, // ⬅️ FIX PENTING
+      jabodetabek: item.jabodetabek,          // tetap
+    }));
+
+    setDataList(mapped);
+
     toast.success("Data Update Plan SO berhasil dimuat!");
   } catch (err) {
     console.error("❌ Gagal fetch audit_full:", err);
     toast.error("Gagal memuat data Update Plan SO!");
-  }
-};
-
-const handleRefresh = async () => {
-  const toastId = toast.loading("⏳ Refreshing data...");
-
-  try {
-    // 🔄 ambil ulang data
-    await fetchDataUpdatePlan();
-
-    // 🗓️ ambil tahun & bulan sekarang
-    const year = new Date().getFullYear().toString().slice(-2);
-    const month = String(new Date().getMonth() + 1).padStart(2, "0");
-
-    // 🔧 renumber SOV
-    await renumberNoLaporan("SOV", year, month);
-
-    // 🔧 renumber SONV
-    await renumberNoLaporan("SONV", year, month);
-
-    toast.success("✅ Data & nomor laporan berhasil dirapikan!", { id: toastId });
-  } catch (err) {
-    console.error(err);
-    toast.error("❌ Gagal melakukan refresh / renumber!", { id: toastId });
   }
 };
 
@@ -1702,17 +1686,20 @@ const handleApprovalUpdate = async (
     toast.error("Terjadi error saat update approval");
   }
 };
+ 
+
+
 
 const handleSubmitAll = async (e: React.FormEvent) => {
   e.preventDefault();
 
   const loadingToast = toast.loading("⏳ Menyimpan semua data...");
 
-  const year = new Date().getFullYear().toString().slice(-2); // contoh: "25"
+  const year = new Date().getFullYear().toString().slice(2);
 
   try {
     for (const form of formList) {
-      // === 🧩 Validasi per form ===
+      // === Validasi ===
       if (form.pic.length === 0 && !form.customPic) {
         toast.error("Isi minimal satu PIC di salah satu form!");
         continue;
@@ -1722,28 +1709,25 @@ const handleSubmitAll = async (e: React.FormEvent) => {
         continue;
       }
 
-      // === 🧮 Ambil bulan plan & ubah ke format angka dua digit
+      // === Cari nomor laporan terakhir ===
       const monthIndex = monthOrder.findIndex(
         (b) => b.toLowerCase() === form.bulan.toLowerCase()
       );
       const monthNum = String(monthIndex + 1).padStart(2, "0");
 
-      // === Tentukan prefix berdasarkan jenisData
       const prefix = form.jenisData === "visit" ? "SOV" : "SONV";
 
-      // === Cari nomor laporan terakhir untuk bulan itu
       const { data: latestData, error: fetchError } = await supabase
         .from("audit_full")
         .select("no_laporan")
         .ilike("no_laporan", `${prefix}/${year}/${monthNum}/%`);
 
       if (fetchError) {
-        console.error("❌ Gagal ambil data terakhir:", fetchError.message);
-        toast.error("Gagal ambil data terakhir untuk nomor laporan");
+        console.error("❌ Fetch nomor laporan error:", fetchError.message);
+        toast.error("Gagal ambil nomor laporan terakhir");
         continue;
       }
 
-      // === Hitung nomor urut berikutnya
       const existingNumbers = (latestData || [])
         .map((d) => d.no_laporan?.split("/")?.[3])
         .filter((n) => n && !isNaN(Number(n)))
@@ -1753,32 +1737,39 @@ const handleSubmitAll = async (e: React.FormEvent) => {
         existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
 
       const nextNumber = String(lastNumber + 1).padStart(3, "0");
+
       const noLaporan = `${prefix}/${year}/${monthNum}/${nextNumber}`;
 
-      // === Gabungkan tanggal awal dan akhir tampilannya
-      const tanggalGabung =
-        form.tanggalAwal && form.tanggalAkhir
-          ? `${form.tanggalAwal} - ${form.tanggalAkhir}`
-          : form.tanggalAwal || form.tanggalAkhir || "";
+      // ===============================
+      //    Format TANGGAL database
+      // ===============================
 
-      // === Build tanggal_estimasi_full (YYYY-MM-DD s/d YYYY-MM-DD)
       let tanggalEstimasiFull = null;
-      if (form.tanggalAwal && form.tanggalAkhir) {
-        const bulanNum = String(monthIndex + 1).padStart(2, "0");
-        const tahunFull = form.tahun;
 
-        const start = `${tahunFull}-${bulanNum}-${String(
-          form.tanggalAwal
-        ).padStart(2, "0")}`;
+      if (form.tanggalAwal || form.tanggalAkhir) {
+        const dayStart = form.tanggalAwal
+          ? String(form.tanggalAwal).padStart(2, "0")
+          : "";
+        const dayEnd = form.tanggalAkhir
+          ? String(form.tanggalAkhir).padStart(2, "0")
+          : "";
 
-        const end = `${tahunFull}-${bulanNum}-${String(
-          form.tanggalAkhir
-        ).padStart(2, "0")}`;
+        const monthNumber = String(monthIndex + 1).padStart(2, "0");
+        const yearFull = form.tahun;
 
-        tanggalEstimasiFull = `${start} s/d ${end}`;
+        if (dayStart && dayEnd) {
+          tanggalEstimasiFull = `${dayStart} - ${dayEnd}/${monthNumber}/${yearFull}`;
+        } else if (dayStart) {
+          tanggalEstimasiFull = `${dayStart}/${monthNumber}/${yearFull}`;
+        } else if (dayEnd) {
+          tanggalEstimasiFull = `${dayEnd}/${monthNumber}/${yearFull}`;
+        }
       }
 
-      // === Gabungkan PIC dan custom PIC
+      // ===============================
+      //          FIX PIC + TEAM
+      // ===============================
+
       const allPIC = [
         ...form.pic,
         ...(form.customPic
@@ -1786,23 +1777,29 @@ const handleSubmitAll = async (e: React.FormEvent) => {
           : []),
       ];
 
-      // === Team: kalau 1 PIC → masuk, kalau >1 → kosong
-      const finalTeam = allPIC.length === 1 ? allPIC : [];
+      const finalPIC = allPIC;               // ← PIC SELALU masuk
+      const finalTeam = allPIC.length === 1  // ← TEAM hanya jika 1 PIC
+        ? allPIC
+        : [];
 
-      // === 💾 Simpan ke Supabase
+      // ===============================
+      //         SIMPAN DATA
+      // ===============================
+
       const { data, error } = await supabase
         .from("audit_full")
         .insert([
           {
             no_laporan: noLaporan,
 
-            team: finalTeam,
+            pic: finalPIC,         // ⬅️ sudah fix
+            team: finalTeam,       // ⬅️ sudah fix
 
             bulan: form.bulan.toUpperCase(),
             minggu: form.minggu,
 
-            tanggal_estimasi: tanggalGabung,
-            tanggal_estimasi_full: tanggalEstimasiFull, // ⬅️ MASUKKAN DI SINI
+            tanggal_estimasi: tanggalEstimasiFull,
+            tanggal_estimasi_full: tanggalEstimasiFull,
 
             tahun: form.tahun,
             jabodetabek: form.jabodetabek,
@@ -1822,18 +1819,15 @@ const handleSubmitAll = async (e: React.FormEvent) => {
         .select();
 
       if (error) {
-        console.error("❌ Gagal insert:", error.message);
-        toast.error("Gagal menyimpan salah satu data form!");
+        console.error("❌ Insert error:", error.message);
+        toast.error("Gagal menyimpan salah satu data!");
         continue;
       }
 
       const newReport = data?.[0];
-      console.log(`✅ Data ${noLaporan} tersimpan`, newReport);
-
-      // Update state React agar tabel langsung tampil
       setDataList((prev) => [newReport, ...prev]);
 
-      // === Buat data approval otomatis
+      // === Approval otomatis ===
       const approvers = ["Aprilia", "NOVIE", "Andreas"];
       const approvalData = approvers.map((name, idx) => ({
         report_id: newReport.id,
@@ -1844,17 +1838,12 @@ const handleSubmitAll = async (e: React.FormEvent) => {
         status: "Belum",
       }));
 
-      const { error: approvalError } = await supabase
-        .from("approvals_status")
-        .insert(approvalData);
-
-      if (approvalError)
-        console.warn("⚠️ Gagal bikin approvals:", approvalError.message);
+      await supabase.from("approvals_status").insert(approvalData);
     }
 
     toast.success("✅ Semua data berhasil disimpan!", { id: loadingToast });
 
-    // 🧹 Reset formList setelah semua data
+    // Reset form
     setFormList([
       {
         pic: [],
@@ -1877,11 +1866,10 @@ const handleSubmitAll = async (e: React.FormEvent) => {
       },
     ]);
   } catch (err: any) {
-    console.error("❌ Gagal simpan:", err.message || err);
+    console.error("❌ Error submit:", err.message || err);
     toast.error("Gagal menyimpan data!", { id: loadingToast });
   }
 };
-
 
 
 
@@ -4520,7 +4508,7 @@ useEffect(() => {
 {/* === PILIH PIC === */}
 <div className="mb-4">
   <label className="block text-sm font-semibold text-slate-800 mb-2">
-    PIC<span className="text-red-500 ml-1">*</span>
+    Team<span className="text-red-500 ml-1">*</span>
   </label>
 
   {/* Checkbox PIC bawaan */}
@@ -5324,7 +5312,7 @@ useEffect(() => {
 </td>
 
         {/* PIC */}
-        <td className="p-2 border border-gray-300 text-left">
+        <td className="p-2 border border-gray-300">
           {[
             ...(d.pic || []),
             ...(d.customPic ? d.customPic.split(",").map((x) => x.trim()) : []),
@@ -5346,13 +5334,15 @@ useEffect(() => {
           </td>
         )}
 
-        {/* Luar Jabodetabek */}
-        {(!selectedKategoriUpdatePlan ||
-          selectedKategoriUpdatePlan === "luarJabodetabek") && (
-          <td className="p-2 border border-gray-300">
-            {highlightText(d.luarJabodetabek || "", searchText)}
-          </td>
-        )}
+{/* Luar Jabodetabek */}
+{(!selectedKategoriUpdatePlan ||
+  selectedKategoriUpdatePlan === "luarJabodetabek") && (
+  <td className="p-2 border border-gray-300">
+    {highlightText(d.luarJabodetabek || "", searchText)}
+  </td>
+)}
+
+
 
         {/* Cabang */}
         {(!selectedKategoriUpdatePlan ||
