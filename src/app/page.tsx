@@ -2466,7 +2466,6 @@ const handleSaveEditModal = useCallback(async (data: any) => {
 
   const loading = toast.loading("⏳ Menyimpan perubahan...");
 
-  // Ambil data lama
   const oldData = dataList.find((d) => d.id === data.id);
   if (!oldData) {
     toast.dismiss(loading);
@@ -2474,63 +2473,46 @@ const handleSaveEditModal = useCallback(async (data: any) => {
   }
 
   // ============================
-  //  Helper Format
+  // Helper Format Tanggal
   // ============================
-  const toYYYYMMDD = (str: string) => {
-    if (!str) return "";
-    const [y, m, d] = str.split("-");
-    return `${y}-${m}-${d}`;
-  };
-
   const toDDMMYYYY = (str: string) => {
     if (!str) return "";
     const [y, m, d] = str.split("-");
     return `${d}/${m}/${y}`;
   };
 
-  // ============================
-  //  Format Estimasi
-  // ============================
-  let finalEstimasiDB = oldData.tanggal_estimasi_full || "";
-  let finalEstimasiUI = oldData.tanggal || "";
-
-  if (data.tanggalAwal || data.tanggalAkhir) {
-    const awal = data.tanggalAwal || data.tanggalAkhir;
-    const akhir = data.tanggalAkhir || data.tanggalAwal;
-
-    if (awal && akhir) {
-      finalEstimasiDB = `${toDDMMYYYY(awal)} - ${toDDMMYYYY(akhir)}`;
-    } else if (awal) {
-      finalEstimasiDB = toDDMMYYYY(awal);
-    }
-
-    finalEstimasiUI = finalEstimasiDB;
-  }
+  const formatRange = (awal: string, akhir: string) => {
+    if (awal && akhir) return `${toDDMMYYYY(awal)} - ${toDDMMYYYY(akhir)}`;
+    if (awal) return toDDMMYYYY(awal);
+    if (akhir) return toDDMMYYYY(akhir);
+    return "";
+  };
 
   // ============================
-  //  Format Realisasi
+  // Format Estimasi
   // ============================
-  let finalRealisasiDB = oldData.tanggal_realisasi_full || "";
-  let finalRealisasiUI = oldData.realisasi || "";
+  const finalEstimasiDB = formatRange(
+    data.tanggalAwal || "",
+    data.tanggalAkhir || ""
+  ) || oldData.tanggal_estimasi_full;
 
-  if (data.realisasiAwal || data.realisasiAkhir) {
-    const awal = data.realisasiAwal || data.realisasiAkhir;
-    const akhir = data.realisasiAkhir || data.realisasiAwal;
-
-    if (awal && akhir) {
-      finalRealisasiDB = `${toDDMMYYYY(awal)} - ${toDDMMYYYY(akhir)}`;
-    } else if (awal) {
-      finalRealisasiDB = toDDMMYYYY(awal);
-    }
-
-    finalRealisasiUI = finalRealisasiDB;
-  }
+  const finalEstimasiUI = finalEstimasiDB;
 
   // ============================
-  //  PIC & TEAM
+  // Format Realisasi
+  // ============================
+  const finalRealisasiDB = formatRange(
+    data.realisasiAwal || "",
+    data.realisasiAkhir || ""
+  ) || oldData.tanggal_realisasi_full;
+
+  const finalRealisasiUI = finalRealisasiDB;
+
+  // ============================
+  // PIC & TEAM
   // ============================
   const combinedPic = [
-    ...(data.pic || oldData.pic || []),
+    ...(Array.isArray(data.pic) ? data.pic : oldData.pic || []),
     ...(data.customPic
       ? data.customPic.split(",").map((x: string) => x.trim())
       : []),
@@ -2539,7 +2521,7 @@ const handleSaveEditModal = useCallback(async (data: any) => {
   const finalTeam = combinedPic.length === 1 ? combinedPic : [];
 
   // ============================
-  //  Build data untuk DB
+  // Build Data untuk DB
   // ============================
   const updatedDataForDB = {
     minggu: data.minggu ?? oldData.minggu,
@@ -2556,6 +2538,8 @@ const handleSaveEditModal = useCallback(async (data: any) => {
     jabodetabek: data.jabodetabek ?? oldData.jabodetabek,
     luar_jabodetabek: data.luarJabodetabek ?? oldData.luarJabodetabek,
     cabang: data.cabang ?? oldData.cabang,
+  anak_cabang: data.anakCabang ?? oldData.anakCabang ?? "",
+
     warehouse: data.warehouse ?? oldData.warehouse,
     tradisional: data.tradisional ?? oldData.tradisional,
     modern: data.modern ?? oldData.modern,
@@ -2568,31 +2552,32 @@ const handleSaveEditModal = useCallback(async (data: any) => {
   };
 
   // ============================
-  //  SIMPAN DATABASE
+  // SIMPAN DATABASE
   // ============================
   try {
-    await supabase
-      .from("audit_full")
-      .update(updatedDataForDB)
-      .eq("id", data.id);
+    await supabase.from("audit_full").update(updatedDataForDB).eq("id", data.id);
 
     // Update UI
-    setDataList((prev) =>
-      prev.map((d) =>
-        d.id === data.id
-          ? {
-              ...d,
-              ...updatedDataForDB,
-              tanggal: finalEstimasiUI,
-              realisasi: finalRealisasiUI,
-            }
-          : d
-      )
-    );
+setDataList((prev) =>
+  prev.map((d) =>
+    d.id === data.id
+      ? {
+          ...d,
+          ...updatedDataForDB,
+
+          tanggal: finalEstimasiUI || d.tanggal || "",
+          realisasi: finalRealisasiUI || d.realisasi || "",
+
+          anakCabang: data.anakCabang ?? d.anakCabang ?? "",
+        }
+      : d
+  )
+);
+
 
     toast.success("Perubahan berhasil disimpan!", {
       id: loading,
-      duration: 2000, // auto close
+      duration: 2000,
     });
   } catch (err) {
     console.error(err);
@@ -2602,6 +2587,7 @@ const handleSaveEditModal = useCallback(async (data: any) => {
     });
   }
 }, [dataList]);
+
 
 
 
@@ -5852,16 +5838,67 @@ useEffect(() => {
           />
         </div>
 
-        <div>
-          <label className="font-semibold text-blue-700">Cabang</label>
-          <textarea
-            value={editingData.cabang || ""}
-            onChange={(e) =>
-              setEditingData({ ...editingData, cabang: e.target.value })
-            }
-            className="w-full border border-blue-300 p-2 rounded-lg min-h-[80px]"
-          />
-        </div>
+{/* CABANG (Parent) */}
+<div>
+  <label className="font-semibold text-blue-700">Cabang</label>
+
+  <select
+    value={editingData.cabang || ""}
+    onChange={(e) => {
+      const newCabang = e.target.value;
+
+      // reset anak cabang saat parent berubah
+      setEditingData({
+        ...editingData,
+        cabang: newCabang,
+        anakCabang: "",
+      });
+    }}
+    className="w-full border border-blue-300 p-2 rounded-lg"
+  >
+    <option value="">-- Pilih Cabang --</option>
+
+    {cabangOptions
+      .filter((c) => c.parent_id === null) // hanya cabang utama
+      .map((parent) => (
+        <option key={parent.id} value={parent.name}>
+          {parent.name}
+        </option>
+      ))}
+  </select>
+</div>
+
+{/* ANAK CABANG */}
+<div>
+  <label className="font-semibold text-blue-700">Anak Cabang</label>
+
+  <select
+    value={editingData.anakCabang || ""}
+    onChange={(e) =>
+      setEditingData({
+        ...editingData,
+        anakCabang: e.target.value,
+      })
+    }
+    className="w-full border border-blue-300 p-2 rounded-lg"
+    disabled={!editingData.cabang} // disable jika parent belum dipilih
+  >
+    <option value="">-- Pilih Anak Cabang --</option>
+
+    {cabangOptions
+      .filter(
+        (c) =>
+          c.parent_id ===
+          cabangOptions.find((p) => p.name === editingData.cabang)?.id
+      )
+      .map((anak) => (
+        <option key={anak.id} value={anak.name}>
+          {anak.name}
+        </option>
+      ))}
+  </select>
+</div>
+
 
         <div>
           <label className="font-semibold text-blue-700">Warehouse</label>
@@ -5884,17 +5921,25 @@ useEffect(() => {
             className="w-full border border-blue-300 p-2 rounded-lg min-h-[80px]"
           />
         </div>
+<div>
+  <label className="font-semibold text-blue-700">Modern</label>
+  <select
+    value={editingData.modern || ""}
+    onChange={(e) =>
+      setEditingData({ ...editingData, modern: e.target.value })
+    }
+    className="w-full border border-blue-300 p-2 rounded-lg"
+  >
+    <option value="">-- Pilih Modern --</option>
 
-        <div>
-          <label className="font-semibold text-blue-700">Modern</label>
-          <textarea
-            value={editingData.modern || ""}
-            onChange={(e) =>
-              setEditingData({ ...editingData, modern: e.target.value })
-            }
-            className="w-full border border-blue-300 p-2 rounded-lg min-h-[80px]"
-          />
-        </div>
+    {modernOptions.map((m) => (
+      <option key={m.id} value={m.name}>
+        {m.name}
+      </option>
+    ))}
+  </select>
+</div>
+
 
         <div>
           <label className="font-semibold text-blue-700">WHZ</label>
