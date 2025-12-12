@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback} from "react";
 import { supabase } from "../lib/supabaseClient"
 import * as XLSX from "xlsx-js-style";
 import { saveAs } from "file-saver";
@@ -804,14 +804,9 @@ const fetchDataUpdatePlan = async () => {
 
     if (error) throw error;
 
-    // 🔥 FIX: Map snake_case → camelCase
-    const mapped = (data || []).map((item) => ({
-      ...item,
-      luarJabodetabek: item.luar_jabodetabek, // ⬅️ FIX PENTING
-      jabodetabek: item.jabodetabek,          // tetap
-    }));
-
-    setDataList(mapped);
+    // ❌ Jangan mapping camelCase
+    // Biarkan data tetap snake_case semua
+    setDataList(data || []);
 
     toast.success("Data Update Plan SO berhasil dimuat!");
   } catch (err) {
@@ -819,6 +814,7 @@ const fetchDataUpdatePlan = async () => {
     toast.error("Gagal memuat data Update Plan SO!");
   }
 };
+
 
 
 const getPieDataForPic = (pic: string | "ALL", bulanFilter: string | "ALL") => {
@@ -2378,114 +2374,122 @@ const handleStartEdit = (index: number, data: AuditData) => {
   setOriginalNoLaporan(data.no_laporan || null);
 };
 
-const handleSaveEditModal = async (data: any) => {
+const handleSaveEditModal = useCallback(async (data: any) => {
   if (!data) return;
 
-  // ambil data lama dari dataList
-  const oldData = dataList.find((d) => d.id === data.id);
-  if (!oldData) return;
+  const loading = toast.loading("⏳ Menyimpan perubahan...");
 
-  const toYYYYMMDD_2025 = (dateStr: string) => {
-    if (!dateStr) return "";
-    const [y, m, d] = dateStr.split("-");
-    return `2025-${m}-${d}`;
+  // Ambil data lama
+  const oldData = dataList.find((d) => d.id === data.id);
+  if (!oldData) {
+    toast.dismiss(loading);
+    return;
+  }
+
+  // ============================
+  //  Helper Format
+  // ============================
+  const toYYYYMMDD = (str: string) => {
+    if (!str) return "";
+    const [y, m, d] = str.split("-");
+    return `${y}-${m}-${d}`;
   };
 
-  const toDDMMYYYY = (dateStr: string) => {
-    if (!dateStr) return "";
-    const [y, m, d] = dateStr.split("-");
+  const toDDMMYYYY = (str: string) => {
+    if (!str) return "";
+    const [y, m, d] = str.split("-");
     return `${d}/${m}/${y}`;
   };
 
-  // ========================
-  //  PROSES ESTIMASI
-  // ========================
-  let finalEstimasiDB = oldData.tanggal || "";
+  // ============================
+  //  Format Estimasi
+  // ============================
+  let finalEstimasiDB = oldData.tanggal_estimasi_full || "";
   let finalEstimasiUI = oldData.tanggal || "";
 
   if (data.tanggalAwal || data.tanggalAkhir) {
-    const awal = data.tanggalAwal || oldData.tanggalAwal;
-    const akhir = data.tanggalAkhir || oldData.tanggalAkhir;
+    const awal = data.tanggalAwal || data.tanggalAkhir;
+    const akhir = data.tanggalAkhir || data.tanggalAwal;
 
     if (awal && akhir) {
-      finalEstimasiDB = `${toYYYYMMDD_2025(awal)} - ${toYYYYMMDD_2025(akhir)}`;
-      finalEstimasiUI = `${toDDMMYYYY(toYYYYMMDD_2025(awal))} - ${toDDMMYYYY(
-        toYYYYMMDD_2025(akhir)
-      )}`;
-    } else {
-      finalEstimasiDB = toYYYYMMDD_2025(awal);
-      finalEstimasiUI = toDDMMYYYY(finalEstimasiDB);
+      finalEstimasiDB = `${toDDMMYYYY(awal)} - ${toDDMMYYYY(akhir)}`;
+    } else if (awal) {
+      finalEstimasiDB = toDDMMYYYY(awal);
     }
+
+    finalEstimasiUI = finalEstimasiDB;
   }
 
-  // ========================
-  //  PROSES REALISASI
-  // ========================
-  let finalRealisasiDB = oldData.realisasi || "";
+  // ============================
+  //  Format Realisasi
+  // ============================
+  let finalRealisasiDB = oldData.tanggal_realisasi_full || "";
   let finalRealisasiUI = oldData.realisasi || "";
 
-  if (data.realisasi) {
-    if (data.realisasi.includes(" - ")) {
-      const [awal, akhir] = data.realisasi.split(" - ");
-      finalRealisasiDB = `${toYYYYMMDD_2025(awal)} - ${toYYYYMMDD_2025(akhir)}`;
-      finalRealisasiUI = `${toDDMMYYYY(toYYYYMMDD_2025(awal))} - ${toDDMMYYYY(
-        toYYYYMMDD_2025(akhir)
-      )}`;
-    } else {
-      finalRealisasiDB = toYYYYMMDD_2025(data.realisasi);
-      finalRealisasiUI = toDDMMYYYY(finalRealisasiDB);
+  if (data.realisasiAwal || data.realisasiAkhir) {
+    const awal = data.realisasiAwal || data.realisasiAkhir;
+    const akhir = data.realisasiAkhir || data.realisasiAwal;
+
+    if (awal && akhir) {
+      finalRealisasiDB = `${toDDMMYYYY(awal)} - ${toDDMMYYYY(akhir)}`;
+    } else if (awal) {
+      finalRealisasiDB = toDDMMYYYY(awal);
     }
+
+    finalRealisasiUI = finalRealisasiDB;
   }
 
-  // ========================
-  // PIC & TEAM aman (fallback oldData)
-  // ========================
-
+  // ============================
+  //  PIC & TEAM
+  // ============================
   const combinedPic = [
     ...(data.pic || oldData.pic || []),
     ...(data.customPic
-      ? data.customPic.split(",").map((x: string) => x.trim()).filter(Boolean)
-      : oldData.customPic
-      ? oldData.customPic.split(",").map((x: string) => x.trim())
+      ? data.customPic.split(",").map((x: string) => x.trim())
       : []),
-  ];
+  ].filter(Boolean);
 
-  // ========================
-  // FINAL DATA UNTUK UPDATE DB & UI
-  // ========================
+  const finalTeam = combinedPic.length === 1 ? combinedPic : [];
 
-const updatedDataForDB = {
-  minggu: data.minggu || oldData.minggu,
+  // ============================
+  //  Build data untuk DB
+  // ============================
+  const updatedDataForDB = {
+    minggu: data.minggu ?? oldData.minggu,
 
-  // ✅ FIXED — sesuai struktur tabel
-  tanggal_estimasi: finalEstimasiDB,
-  tanggal_realisasi: finalRealisasiDB,
+    tanggal_estimasi: finalEstimasiDB,
+    tanggal_estimasi_full: finalEstimasiDB,
 
-  pic: combinedPic,
-  team: Array.isArray(data.team) ? data.team : oldData.team,
+    tanggal_realisasi: finalRealisasiDB,
+    tanggal_realisasi_full: finalRealisasiDB,
 
-  jabodetabek: data.jabodetabek ?? oldData.jabodetabek,
-  luar_jabodetabek: data.luarJabodetabek ?? oldData.luarJabodetabek,
-  cabang: data.cabang ?? oldData.cabang,
-  warehouse: data.warehouse ?? oldData.warehouse,
-  tradisional: data.tradisional ?? oldData.tradisional,
-  modern: data.modern ?? oldData.modern,
-  whz: data.whz ?? oldData.whz,
+    pic: combinedPic,
+    team: finalTeam,
 
-  description: data.description ?? oldData.description,
-  status: data.status ?? oldData.status,
-  company: data.company ?? oldData.company,
+    jabodetabek: data.jabodetabek ?? oldData.jabodetabek,
+    luar_jabodetabek: data.luarJabodetabek ?? oldData.luarJabodetabek,
+    cabang: data.cabang ?? oldData.cabang,
+    warehouse: data.warehouse ?? oldData.warehouse,
+    tradisional: data.tradisional ?? oldData.tradisional,
+    modern: data.modern ?? oldData.modern,
+    whz: data.whz ?? oldData.whz,
+    description: data.description ?? oldData.description,
+    status: data.status ?? oldData.status,
+    company: data.company ?? oldData.company,
 
-  no_laporan: data.no_laporan ?? oldData.no_laporan,
-  uploaded_by: data.uploaded_by ?? oldData.uploaded_by,
+    edited_at: new Date().toISOString(),
+  };
 
-  edited_at: new Date().toISOString(),
-};
-
-
+  // ============================
+  //  SIMPAN DATABASE
+  // ============================
   try {
-    await supabase.from("audit_full").update(updatedDataForDB).eq("id", data.id);
+    await supabase
+      .from("audit_full")
+      .update(updatedDataForDB)
+      .eq("id", data.id);
 
+    // Update UI
     setDataList((prev) =>
       prev.map((d) =>
         d.id === data.id
@@ -2499,12 +2503,19 @@ const updatedDataForDB = {
       )
     );
 
-    toast.success("Perubahan berhasil disimpan!");
+    toast.success("Perubahan berhasil disimpan!", {
+      id: loading,
+      duration: 2000, // auto close
+    });
   } catch (err) {
     console.error(err);
-    toast.error("Gagal menyimpan data!");
+    toast.error("Gagal menyimpan perubahan!", {
+      id: loading,
+      duration: 2000,
+    });
   }
-};
+}, [dataList]);
+
 
 
   const handleCancelEdit = () => {
@@ -3102,50 +3113,59 @@ const filteredFullData = dataList
     return monthA === monthB ? (b.id ?? 0) - (a.id ?? 0) : monthA - monthB;
   });
 
+
+
+
 const handleDeleteUpdatePlan = async (plan: AuditData) => {
   const yakin = window.confirm(
     `⚠️ Yakin ingin menghapus data Update Plan: ${plan.no_laporan || "-"} ?`
   );
   if (!yakin) return;
 
+  const toastId = toast.loading("⏳ Menghapus data...");
+
   try {
     const noLaporan = plan.no_laporan?.trim();
     if (!noLaporan) {
-      toast.error("❌ Tidak bisa hapus: No Laporan kosong!");
+      toast.error("❌ Tidak bisa hapus: No Laporan kosong!", { id: toastId });
       return;
     }
 
-   
+    // 🟢 Hapus dari audit_full (WAJIB pakai .select())
     const { error: planError } = await supabase
       .from("audit_full")
       .delete()
-      .eq("no_laporan", noLaporan);
+      .eq("no_laporan", noLaporan)
+      .select(); // ⬅ FIX UTAMA
 
     if (planError) {
-      console.error("❌ Gagal hapus dari audit_full:", planError.message);
-      toast.error("Gagal hapus data Update Plan!");
+      console.error("❌ Gagal hapus audit_full:", planError.message);
+      toast.error("Gagal hapus data Update Plan!", { id: toastId });
       return;
     }
 
-  
-    const { error: auditError } = await supabase
-      .from("audit_full")
+    // 🟢 Hapus approval terkait
+    await supabase
+      .from("approvals_status")
       .delete()
-      .eq("no_laporan", noLaporan);
+      .eq("report_id", plan.id);
 
-    if (auditError) {
-      console.warn("⚠️ Gagal hapus dari audit_full:", auditError.message);
-    }
-
-    // 🟢 Update tampilan
+    // 🟢 Update UI
     setDataList((prev) => prev.filter((d) => d.no_laporan !== noLaporan));
 
-    toast.success("✅ Data berhasil dihapus dari Update Plan!");
+    toast.success("✅ Data berhasil dihapus!", {
+      id: toastId,
+      duration: 2000,
+    });
   } catch (err) {
     console.error("🚨 Error hapus Update Plan:", err);
-    toast.error("Terjadi kesalahan saat menghapus data!");
+    toast.error("Terjadi kesalahan saat menghapus data!", {
+      id: toastId,
+      duration: 2000,
+    });
   }
 };
+
 
 
 
