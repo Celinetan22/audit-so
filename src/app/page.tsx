@@ -15,7 +15,7 @@ import { Loader2 } from "lucide-react";
 import KelolaPIC from "@/components/KelolaPIC";
 import KelolaCabang from "@/components/KelolaCabang";
 import EllipsisPagination from "@/components/EllipsisPagination";
-import KelolaApproval from "@/components/KelolaApproval";
+
 import AdminOnly from "@/components/AdminOnly";
 import KelolaModern from "@/components/KelolaModern";
 import KelolaUser from "@/components/KelolaUser";
@@ -3391,7 +3391,6 @@ useEffect(() => {
         children: [
           { key: "kelolaPIC", label: "Kelola PIC", icon: User },
           { key: "kelolaCabang", label: "Kelola Cabang", icon: Building },
-          { key: "kelolaApproval", label: "Kelola Approval", icon: CheckCircle },
           { key: "kelolaModern", label: "Kelola Modern", icon: ShoppingCart },
           { key: "kelolaUser", label: "Kelola User", icon: Users },
         ],
@@ -3556,11 +3555,7 @@ useEffect(() => {
   </AdminOnly>
 )}
 
-{activePage === "kelolaApproval" && (
-  <AdminOnly>
-    <KelolaApproval />
-  </AdminOnly>
-)}
+
 
 {activePage === "kelolaModern" && (
   <AdminOnly>
