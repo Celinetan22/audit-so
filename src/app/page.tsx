@@ -5619,10 +5619,64 @@ useEffect(() => {
         <td className="p-2 border border-gray-300">
           <div className="flex gap-2 justify-center">
             <button
-              onClick={() => {
-                setEditingData({ ...d });
-                setShowEditModal(true);
-              }}
+onClick={() => {
+  // Convert dd/mm/yyyy → yyyy-mm-dd
+  const toISO = (str: string) => {
+    if (!str || !str.includes("/")) return "";
+    const [d, m, y] = str.split("/");
+    return `${y}-${m}-${d}`;
+  };
+
+  const parseRange = (str: string) => {
+    if (!str) return { start: "", end: "" };
+
+    const parts = str.split(" - ");
+
+    // kasus "dd/mm/yyyy - dd/mm/yyyy"
+    if (parts.length === 2) {
+      return {
+        start: toISO(parts[0]),
+        end: toISO(parts[1]),
+      };
+    }
+
+    // kasus hanya satu tanggal
+    return { start: toISO(str), end: "" };
+  };
+
+  // Ambil dari DB — urutan prioritas
+  const rawEstimasi =
+    d.tanggal_estimasi_full ||
+    d.tanggal ||
+    "";
+
+  const rawRealisasi =
+    d.tanggal_realisasi_full ||
+    d.realisasi ||
+    "";
+
+  const est = parseRange(rawEstimasi);
+  const real = parseRange(rawRealisasi);
+
+  // Set ke modal
+  setEditingData({
+    ...(d as any),
+
+    // ⬇⬇ ini yang muncul di date picker ⬇⬇
+    tanggalAwal: est.start,
+    tanggalAkhir: est.end,
+
+    realisasiAwal: real.start,
+    realisasiAkhir: real.end,
+
+    // untuk field textarea realisasi
+    realisasi: rawRealisasi,
+  } as any);
+
+  setShowEditModal(true);
+}}
+
+
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border 
                          border-blue-400 text-blue-600 hover:bg-blue-50"
             >
