@@ -101,6 +101,7 @@ type AuditData = {
   jabodetabek: string;
   luarJabodetabek: string;
   cabang: string;
+  
   warehouse: string;
   tradisional: string;
   modern: string;
@@ -117,7 +118,7 @@ type AuditData = {
   no_laporan?: string | null;
   jenisData?: "visit" | "non-visit" | "";
   company?: string;
-  anakCabang?: string;
+  anakCabang?: string; 
   approved_by?: string[]; // ✅ tambahkan ini
   customPic?: string;
 };
@@ -126,6 +127,7 @@ type Cabang = {
   id: number;
   name: string;
   parent_id: number | null;
+  children?: Cabang[];
 };
 
 const monthOrder = [
@@ -403,6 +405,54 @@ const router = useRouter();
 const [showUserMenu, setShowUserMenu] = useState(false);
 const [selectedMonthForNo, setSelectedMonthForNo] = useState<string>(""); 
 const [approvalTab, setApprovalTab] = useState<"pending" | "approved">("pending");
+const [cabangs, setCabangs] = useState<Cabang[]>([]);
+const fetchCabangsTree = async () => {
+  const { data } = await supabase.from("cabangs").select("*").order("id");
+  if (!data) return;
+
+  const map: Record<number, Cabang> = {};
+  const root: Cabang[] = [];
+
+  data.forEach((c) => (map[c.id] = { ...c, children: [] }));
+
+  data.forEach((c) => {
+    if (c.parent_id) map[c.parent_id]?.children?.push(map[c.id]);
+    else root.push(map[c.id]);
+  });
+
+  setCabangs(root);
+};
+
+// Cabang dan Anak cabang
+const [expandedCabang, setExpandedCabang] = useState<number | null>(null);
+const [selectedAnakCabangDetail, setSelectedAnakCabangDetail] = useState<any>(null);
+const toggleExpandCabang = (id?: number) => {
+  setExpandedCabang(expandedCabang === id ? null : id ?? null);
+};
+
+
+const openAnakCabangModal = (anak: any) => {
+  setSelectedAnakCabangDetail(anak);
+};
+
+
+
+
+const findCabangByName = (name: string): Cabang | null => {
+  const search = (list: Cabang[]): Cabang | null => {
+    for (const c of list) {
+      if (c.name.toLowerCase() === name.toLowerCase()) return c;
+      if (c.children) {
+        const found = search(c.children);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  return search(cabangs); // cabangs = hasil fetch tree dari KelolaCabang
+};
+
+
 
 
 // === STATE UNTUK TAB & PENCARIAN ===
@@ -778,6 +828,7 @@ useEffect(() => {
   };
 
   fetchCabang();
+    fetchCabangsTree(); 
 }, []);
 
 useEffect(() => {
@@ -1685,27 +1736,31 @@ const handleApprovalUpdate = async (
  
 
 
-
 const handleSubmitAll = async (e: React.FormEvent) => {
   e.preventDefault();
 
   const loadingToast = toast.loading("⏳ Menyimpan semua data...");
-
   const year = new Date().getFullYear().toString().slice(2);
 
   try {
     for (const form of formList) {
-      // === Validasi ===
+
+      // ===============================
+      //            VALIDASI
+      // ===============================
       if (form.pic.length === 0 && !form.customPic) {
         toast.error("Isi minimal satu PIC di salah satu form!");
         continue;
       }
+
       if (!form.bulan) {
         toast.error("Bulan wajib diisi di setiap form!");
         continue;
       }
 
-      // === Cari nomor laporan terakhir ===
+      // ===============================
+      //     GENERATE NOMOR LAPORAN
+      // ===============================
       const monthIndex = monthOrder.findIndex(
         (b) => b.toLowerCase() === form.bulan.toLowerCase()
       );
@@ -1727,45 +1782,34 @@ const handleSubmitAll = async (e: React.FormEvent) => {
       const existingNumbers = (latestData || [])
         .map((d) => d.no_laporan?.split("/")?.[3])
         .filter((n) => n && !isNaN(Number(n)))
-        .map((n) => Number(n));
+        .map(Number);
 
-      const lastNumber =
-        existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
-
-      const nextNumber = String(lastNumber + 1).padStart(3, "0");
+      const nextNumber = String((existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0) + 1)
+        .padStart(3, "0");
 
       const noLaporan = `${prefix}/${year}/${monthNum}/${nextNumber}`;
 
       // ===============================
-      //    Format TANGGAL database
+      //        FORMAT TANGGAL
       // ===============================
-
       let tanggalEstimasiFull = null;
 
       if (form.tanggalAwal || form.tanggalAkhir) {
-        const dayStart = form.tanggalAwal
-          ? String(form.tanggalAwal).padStart(2, "0")
-          : "";
-        const dayEnd = form.tanggalAkhir
-          ? String(form.tanggalAkhir).padStart(2, "0")
-          : "";
-
+        const dayStart = form.tanggalAwal ? String(form.tanggalAwal).padStart(2, "0") : "";
+        const dayEnd = form.tanggalAkhir ? String(form.tanggalAkhir).padStart(2, "0") : "";
         const monthNumber = String(monthIndex + 1).padStart(2, "0");
-        const yearFull = form.tahun;
 
-        if (dayStart && dayEnd) {
-          tanggalEstimasiFull = `${dayStart} - ${dayEnd}/${monthNumber}/${yearFull}`;
-        } else if (dayStart) {
-          tanggalEstimasiFull = `${dayStart}/${monthNumber}/${yearFull}`;
-        } else if (dayEnd) {
-          tanggalEstimasiFull = `${dayEnd}/${monthNumber}/${yearFull}`;
-        }
+        if (dayStart && dayEnd)
+          tanggalEstimasiFull = `${dayStart} - ${dayEnd}/${monthNumber}/${form.tahun}`;
+        else if (dayStart)
+          tanggalEstimasiFull = `${dayStart}/${monthNumber}/${form.tahun}`;
+        else if (dayEnd)
+          tanggalEstimasiFull = `${dayEnd}/${monthNumber}/${form.tahun}`;
       }
 
       // ===============================
-      //          FIX PIC + TEAM
+      //        FIX PIC & TEAM
       // ===============================
-
       const allPIC = [
         ...form.pic,
         ...(form.customPic
@@ -1773,45 +1817,51 @@ const handleSubmitAll = async (e: React.FormEvent) => {
           : []),
       ];
 
-      const finalPIC = allPIC;               // ← PIC SELALU masuk
-      const finalTeam = allPIC.length === 1  // ← TEAM hanya jika 1 PIC
-        ? allPIC
-        : [];
+      const finalPIC = allPIC;
+      const finalTeam = allPIC.length === 1 ? allPIC : [];
 
       // ===============================
-      //         SIMPAN DATA
+      //         SUSUN PAYLOAD
       // ===============================
+      const payload: any = {
+        no_laporan: noLaporan,
+        pic: finalPIC,
+        team: finalTeam,
 
+        bulan: form.bulan.toUpperCase(),
+        minggu: form.minggu,
+        tanggal_estimasi: tanggalEstimasiFull,
+        tanggal_estimasi_full: tanggalEstimasiFull,
+
+        tahun: form.tahun,
+        jabodetabek: form.jabodetabek,
+        luar_jabodetabek: form.luarJabodetabek,
+
+        cabang: form.cabang,
+
+        warehouse: form.warehouse,
+        tradisional: form.tradisional,
+        modern: form.modern,
+        whz: form.whz,
+        description: form.description,
+        status: "Belum",
+
+        company: form.company,
+        jenisData: form.jenisData,
+        created_at: new Date().toISOString(),
+      };
+
+      // 🔥 Tambahkan anak cabang HANYA jika user memilih
+      if (form.anakCabang && form.anakCabang.trim() !== "") {
+        payload.anak_cabang = form.anakCabang;
+      }
+
+      // ===============================
+      //      SIMPAN KE DATABASE
+      // ===============================
       const { data, error } = await supabase
         .from("audit_full")
-        .insert([
-          {
-            no_laporan: noLaporan,
-
-            pic: finalPIC,         // ⬅️ sudah fix
-            team: finalTeam,       // ⬅️ sudah fix
-
-            bulan: form.bulan.toUpperCase(),
-            minggu: form.minggu,
-
-            tanggal_estimasi: tanggalEstimasiFull,
-            tanggal_estimasi_full: tanggalEstimasiFull,
-
-            tahun: form.tahun,
-            jabodetabek: form.jabodetabek,
-            luar_jabodetabek: form.luarJabodetabek,
-            cabang: form.cabang,
-            warehouse: form.warehouse,
-            tradisional: form.tradisional,
-            modern: form.modern,
-            whz: form.whz,
-            description: form.description,
-            status: "Belum",
-            company: form.company,
-            jenisData: form.jenisData,
-            created_at: new Date().toISOString(),
-          },
-        ])
+        .insert([payload])
         .select();
 
       if (error) {
@@ -1823,7 +1873,9 @@ const handleSubmitAll = async (e: React.FormEvent) => {
       const newReport = data?.[0];
       setDataList((prev) => [newReport, ...prev]);
 
-      // === Approval otomatis ===
+      // ===============================
+      //      APPROVAL AUTO GENERATE
+      // ===============================
       const approvers = ["Aprilia", "NOVIE", "Andreas"];
       const approvalData = approvers.map((name, idx) => ({
         report_id: newReport.id,
@@ -1839,7 +1891,9 @@ const handleSubmitAll = async (e: React.FormEvent) => {
 
     toast.success("✅ Semua data berhasil disimpan!", { id: loadingToast });
 
-    // Reset form
+    // ===============================
+    //    RESET FORM KEMBALI 1
+    // ===============================
     setFormList([
       {
         pic: [],
@@ -1852,6 +1906,7 @@ const handleSubmitAll = async (e: React.FormEvent) => {
         jabodetabek: "",
         luarJabodetabek: "",
         cabang: "",
+        anakCabang: "",
         warehouse: "",
         tradisional: "",
         modern: "",
@@ -1861,6 +1916,7 @@ const handleSubmitAll = async (e: React.FormEvent) => {
         status: "Belum",
       },
     ]);
+
   } catch (err: any) {
     console.error("❌ Error submit:", err.message || err);
     toast.error("Gagal menyimpan data!", { id: loadingToast });
@@ -5241,6 +5297,7 @@ useEffect(() => {
 
        
         <th className="border border-gray-200 p-2">Aksi</th>
+     
       </tr>
     </thead>
 
@@ -5363,14 +5420,64 @@ useEffect(() => {
 )}
 
 
+{/* Cabang */}
+{(!selectedKategoriUpdatePlan ||
+  selectedKategoriUpdatePlan === "cabang") && (
+  <td className="p-2 border border-gray-300">
 
-        {/* Cabang */}
-        {(!selectedKategoriUpdatePlan ||
-          selectedKategoriUpdatePlan === "cabang") && (
-          <td className="p-2 border border-gray-300">
-            {highlightText(d.cabang || "", searchText)}
-          </td>
-        )}
+    {/* Parent Cabang */}
+    <div
+      className="cursor-pointer font-semibold"
+      onClick={() => toggleExpandCabang(d.id)}
+    >
+      {expandedCabang === d.id ? "▼ " : "► "}
+      {highlightText(d.cabang || "", searchText)}
+    </div>
+{expandedCabang === d.id && (
+  <div className="mt-2 pl-4 border-l-2 border-gray-300">
+    {(() => {
+      // 🔹 1. Jika tidak ada anakCabang → tampilkan info saja
+      if (!d.anakCabang) {
+        return (
+          <div className="text-xs text-gray-400 italic">
+            Tidak ada anak cabang
+          </div>
+        );
+      }
+
+      // 🔹 2. Cari anak cabang di master cabang (aman dari undefined)
+      const child = cabangOptions.find(
+        (c) => c.name.toLowerCase() === (d.anakCabang || "").toLowerCase()
+      );
+
+      if (!child) {
+        return (
+          <div className="text-xs text-gray-400 italic">
+            Anak cabang tidak ditemukan di master
+          </div>
+        );
+      }
+
+      // 🔹 3. Tampilkan hanya anak cabang yang dipilih user
+      return (
+        <div
+          key={child.id}
+          className="text-sm py-1 px-2 rounded hover:bg-gray-100 cursor-pointer"
+          onClick={() => openAnakCabangModal(child)}
+        >
+          └─ {child.name}
+        </div>
+      );
+    })()}
+  </div>
+)}
+
+
+
+  </td>
+)}
+
+
 
         {/* Warehouse */}
         {(!selectedKategoriUpdatePlan ||
@@ -5838,6 +5945,26 @@ useEffect(() => {
 
 
 </div>
+
+{selectedAnakCabangDetail && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div className="bg-white p-6 rounded-xl shadow-lg w-96">
+      <h2 className="text-lg font-bold mb-4">Detail Anak Cabang</h2>
+
+      <p><strong>Nama:</strong> {selectedAnakCabangDetail.name}</p>
+      <p><strong>ID:</strong> {selectedAnakCabangDetail.id}</p>
+      <p><strong>Parent ID:</strong> {selectedAnakCabangDetail.parent_id}</p>
+
+      <button
+        onClick={() => setSelectedAnakCabangDetail(null)}
+        className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 w-full"
+      >
+        Tutup
+      </button>
+    </div>
+  </div>
+)}
+
 
 {/* === Pagination Modern (Update Plan) === */}
 <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mt-6 text-sm text-slate-600">
