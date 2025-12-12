@@ -833,9 +833,14 @@ useEffect(() => {
 
 useEffect(() => {
   const fetchModernOptions = async () => {
-    const { data, error } = await supabase.from("modern").select("id, name").order("name");
+    const { data, error } = await supabase
+      .from("modern")
+      .select("id, name")
+      .order("name");
+
     if (!error && data) setModernOptions(data);
   };
+
   fetchModernOptions();
 }, []);
 
@@ -4813,8 +4818,33 @@ useEffect(() => {
             </div>
           </div>
 
+{/* === MODERN === */}
+<div className="mt-3">
+  <label className="block text-sm font-medium text-slate-700 mb-1">
+    Modern
+  </label>
+
+  <select
+    value={formData.modern || ""}
+    onChange={(e) => {
+      const updated = [...formList];
+      updated[index].modern = e.target.value;
+      setFormList(updated);
+    }}
+    className="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition"
+  >
+    <option value="">-- Pilih Modern --</option>
+    {modernOptions.map((m) => (
+      <option key={m.id} value={m.name}>
+        {m.name}
+      </option>
+    ))}
+  </select>
+</div>
+
+
           {/* FIELD LAIN */}
-          {[ "jabodetabek","luarJabodetabek","warehouse","tradisional","modern","whz" ].map((field) => (
+          {[ "jabodetabek","luarJabodetabek","warehouse","tradisional","whz" ].map((field) => (
             <div key={field} className="mt-3">
               <label className="block text-sm font-medium text-slate-700 mb-1 capitalize">
                 {field === "whz" ? "WH-Z" : field}
@@ -4831,6 +4861,9 @@ useEffect(() => {
               />
             </div>
           ))}
+
+
+
 
           {/* Jenis Data */}
           <div className="mt-4">
