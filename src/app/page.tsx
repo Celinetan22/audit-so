@@ -145,6 +145,22 @@ const monthOrder = [
   "DESEMBER",
 ];
 
+const monthShortMap: Record<string, string> = {
+  JANUARI: "Jan",
+  FEBRUARI: "Feb",
+  MARET: "Mar",
+  APRIL: "Apr",
+  MEI: "Mei",
+  JUNI: "Jun",
+  JULI: "Jul",
+  AGUSTUS: "Agu",
+  SEPTEMBER: "Sep",
+  OKTOBER: "Okt",
+  NOVEMBER: "Nov",
+  DESEMBER: "Des",
+};
+
+
 const kategoriHeaders = [
   { key: "jabodetabek", label: "Jabodetabek" },
   { key: "luarJabodetabek", label: "Luar Jabo" },
@@ -603,24 +619,34 @@ const barDataKategoriFilter = Object.values(
   dataList.reduce((acc: any, d: any) => {
     if (!d.bulan) return acc;
 
-    const bulanKey = d.bulan.toUpperCase();
-    if (!acc[bulanKey]) {
-      acc[bulanKey] = { bulan: bulanKey, total: 0 };
+    // Normalisasi bulan dari database
+    const bulanFull = d.bulan.trim().toUpperCase();
+
+    // Ambil singkatan aman (Jan, Feb, Mar…)
+    const bulanShort =
+      monthShortMap[bulanFull] ??
+      bulanFull.substring(0, 3).charAt(0).toUpperCase() +
+        bulanFull.substring(1, 3).toLowerCase();
+
+    if (!acc[bulanFull]) {
+      acc[bulanFull] = {
+        bulanFull,     // dipakai untuk sorting
+        bulan: bulanShort, // dipakai untuk tampil
+        total: 0,
+      };
     }
 
-    // Hitung hanya kategori yang sedang difilter
     if (d[kategoriChart]) {
-      acc[bulanKey].total++;
+      acc[bulanFull].total++;
     }
 
     return acc;
   }, {})
 ).sort(
   (a: any, b: any) =>
-    monthOrder.findIndex((m) => m.toUpperCase() === a.bulan) -
-    monthOrder.findIndex((m) => m.toUpperCase() === b.bulan)
+    monthOrder.findIndex((m) => m.toUpperCase() === a.bulanFull) -
+    monthOrder.findIndex((m) => m.toUpperCase() === b.bulanFull)
 );
-
 
 const renderValue = (value: any) => {
   if (value == null) return "-";
