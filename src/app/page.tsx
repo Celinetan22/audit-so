@@ -293,60 +293,52 @@ function formatDate(dateStr: string): string {
   return dateStr;
 }
 
-function formatTanggalDisplay(tanggalStr: string) {
-  if (!tanggalStr) return "-";
 
-  const monthNames: Record<string, string> = {
+
+function formatDateDisplay(dateStr: string): string {
+  if (!dateStr) return "-";
+
+  // 🔑 SUDAH FORMAT TEKS → LANGSUNG TAMPILKAN
+  if (/[a-zA-Z]/.test(dateStr)) {
+    return dateStr;
+  }
+
+  const bulanNama: Record<string, string> = {
     "01": "Jan", "02": "Feb", "03": "Mar", "04": "Apr",
     "05": "Mei", "06": "Jun", "07": "Jul", "08": "Agu",
     "09": "Sep", "10": "Okt", "11": "Nov", "12": "Des",
   };
 
-  const [dayPart, month, year] = tanggalStr.split("/");
-
-  const monthName = monthNames[month];
-
-  // range → 22 - 24/01/2025
-  if (dayPart.includes("-")) {
-    const [start, end] = dayPart.split("-").map((v) => v.trim());
-    return `${start} ${monthName} ${year} - ${end} ${monthName} ${year}`;
-  }
-
-  // single → 23/05/2025
-  return `${dayPart} ${monthName} ${year}`;
-}
-
-function formatDateDisplay(dateStr: string): string {
-  if (!dateStr) return "-";
-
-  const bulanNama: Record<string, string> = {
-    "01": "Jan",
-    "02": "Feb",
-    "03": "Mar",
-    "04": "Apr",
-    "05": "Mei",
-    "06": "Jun",
-    "07": "Jul",
-    "08": "Agu",
-    "09": "Sep",
-    "10": "Okt",
-    "11": "Nov",
-    "12": "Des",
-  };
-
-  // Range: 22-24/01/2025
   if (dateStr.includes("-")) {
     const [range, month, year] = dateStr.split("/");
+    if (!bulanNama[month]) return dateStr;
+
     const [start, end] = range.split("-").map((x) => x.padStart(2, "0"));
     return `${start} ${bulanNama[month]} ${year} - ${end} ${bulanNama[month]} ${year}`;
   }
 
-  // Single date: 22/01/2025
   const [day, month, year] = dateStr.split("/");
+  if (!bulanNama[month]) return dateStr;
+
   return `${day.padStart(2, "0")} ${bulanNama[month]} ${year}`;
 }
 
 
+
+type SplitRealisasiResult = {
+  awal: string;
+  akhir: string;
+};
+
+function splitRealisasi(value?: string): SplitRealisasiResult {
+  if (!value) return { awal: "", akhir: "" };
+
+  const parts = value.split(" - ");
+  return {
+    awal: parts[0] || "",
+    akhir: parts[1] || "",
+  };
+}
 
 
 export default function AuditApp() {
@@ -411,7 +403,16 @@ export default function AuditApp() {
   // 🔹 State baru
   const [searchCabangDetail, setSearchCabangDetail] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
+  
+  // kategori
   const [selectedKategori, setSelectedKategori] = useState<"jabodetabek" | "luarJabodetabek" | "cabang" | "warehouse" | "tradisional" | "modern" | "whz" | "">("");
+  const [selectedSubKategori, setSelectedSubKategori] = useState("");
+  const [periodeType, setPeriodeType] = useState<"tahun" | "bulan">("tahun");
+  const [selectedKategoriMonth, setSelectedKategoriMonth] = useState<string>("JANUARI");
+  const [clickedBulan, setClickedBulan] = useState<string | null>(null);
+
+
+  
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [selectedDashboardBulan, setSelectedDashboardBulan] = useState<string | null>(null);
   const [modernOptions, setModernOptions] = useState<{ id: number; name: string }[]>([]);
@@ -541,12 +542,23 @@ const jabodetabekPerBulan = Object.values(
     monthOrder.findIndex((m) => m.toUpperCase() === b.bulan)
 );
 
-const handleBarClick = (data: any) => {
-  if (!data || !data.bulan) return;
+const handleBarClick = (payload: any) => {
+  if (!payload || !payload.bulan) return;
 
-  setSelectedKategoriUpdatePlan(kategoriChart);
-  setSelectedBulanUpdatePlan(data.bulan);
-  setActivePage("updatePlanSO");   // pindah halaman tanpa routing
+  // 👉 set halaman
+  setActivePage("kategoriReport");
+
+  // 👉 set kategori dari dropdown chart
+  setSelectedKategori(kategoriChart as any);
+
+  // 👉 auto ke mode 1 bulan
+  setPeriodeType("bulan");
+
+  // 👉 set bulan dari bar yang diklik
+  setSelectedKategoriMonth(payload.bulan.toUpperCase());
+
+  // 👉 (opsional) reset sub kategori
+  setSelectedSubKategori("");
 };
 
 
@@ -803,6 +815,7 @@ const teamListForSelectedMonth =
 const teamListForSelectedMonthSorted = [...teamListForSelectedMonth].sort(
   (a, b) => b.total - a.total
 );
+
 
 
 
@@ -2484,15 +2497,25 @@ const handleSaveEditModal = useCallback(async (data: any) => {
   // ============================
   // Helper Format Tanggal
   // ============================
-  const toDDMMYYYY = (str: string) => {
-    if (!str) return "";
+const toDDMMYYYY = (str: string) => {
+  if (!str) return "";
+
+  // kalau sudah format teks → BIARKAN
+  if (/[a-zA-Z]/.test(str)) return str;
+
+  // YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
     const [y, m, d] = str.split("-");
     return `${d}/${m}/${y}`;
-  };
+  }
 
-const [parsedAwal, parsedAkhir] = data.realisasi
-  ? data.realisasi.split(" - ")
-  : ["", ""];
+  return str;
+};
+
+
+const { awal: parsedAwal, akhir: parsedAkhir } =
+  splitRealisasi(data.realisasi);
+
 
   const formatRange = (awal: string, akhir: string) => {
     if (awal && akhir) return `${toDDMMYYYY(awal)} - ${toDDMMYYYY(akhir)}`;
@@ -2514,10 +2537,11 @@ const [parsedAwal, parsedAkhir] = data.realisasi
   // ============================
   // Format Realisasi
   // ============================
-const finalRealisasiDB = formatRange(
-  parsedAwal || "",
-  parsedAkhir || ""
-) || oldData.tanggal_realisasi_full;
+const finalRealisasiDB =
+  formatRange(parsedAwal, parsedAkhir) ||
+  oldData.tanggal_realisasi_full ||
+  "";
+
 
 const finalRealisasiUI = finalRealisasiDB;
 
@@ -6057,43 +6081,42 @@ onClick={() => {
         </div>
 
         {/* TANGGAL REALISASI */}
-        <div>
-          <label className="font-semibold text-blue-700">Realisasi Awal</label>
-          <input
-  type="date"
-  value={editingData.realisasi?.split(" - ")[0] || ""}
-  onChange={(e) => {
-    const awal = e.target.value;
-    const akhir = editingData.realisasi?.split(" - ")[1] || "";
+<div>
+  <label className="font-semibold text-blue-700">Realisasi Awal</label>
+  <input
+    type="date"
+    value={splitRealisasi(editingData.realisasi).awal}
+    onChange={(e) => {
+      const awal = e.target.value;
+      const { akhir } = splitRealisasi(editingData.realisasi);
 
-    setEditingData({
-      ...editingData,
-      realisasi: akhir ? `${awal} - ${akhir}` : awal,
-    });
-  }}
-  className="w-full border border-blue-300 p-2 rounded-lg"
-/>
+      setEditingData({
+        ...editingData,
+        realisasi: awal && akhir ? `${awal} - ${akhir}` : awal,
+      });
+    }}
+    className="w-full border border-blue-300 p-2 rounded-lg"
+  />
+</div>
 
-        </div>
+<div>
+  <label className="font-semibold text-blue-700">Realisasi Akhir</label>
+  <input
+    type="date"
+    value={splitRealisasi(editingData.realisasi).akhir}
+    onChange={(e) => {
+      const akhir = e.target.value;
+      const { awal } = splitRealisasi(editingData.realisasi);
 
-        <div>
-          <label className="font-semibold text-blue-700">Realisasi Akhir</label>
-         <input
-  type="date"
-  value={editingData.realisasi?.split(" - ")[1] || ""}
-  onChange={(e) => {
-    const akhir = e.target.value;
-    const awal = editingData.realisasi?.split(" - ")[0] || "";
+      setEditingData({
+        ...editingData,
+        realisasi: awal && akhir ? `${awal} - ${akhir}` : akhir,
+      });
+    }}
+    className="w-full border border-blue-300 p-2 rounded-lg"
+  />
+</div>
 
-    setEditingData({
-      ...editingData,
-      realisasi: awal ? `${awal} - ${akhir}` : akhir,
-    });
-  }}
-  className="w-full border border-blue-300 p-2 rounded-lg"
-/>
-
-        </div>
 
         {/* NO LAPORAN */}
         <div>
@@ -6262,7 +6285,224 @@ onClick={() => {
         )}
         </div>
 
- 
+ {/* === Laporan kategori Report === */}
+{activePage === "kategoriReport" && (
+  <PageWrapper title="Kategori Performance Report">
+    <div className="space-y-6">
+
+      {/* ================= FILTER SECTION ================= */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-white p-4 rounded-xl shadow">
+
+        {/* KATEGORI */}
+        <div>
+          <label className="text-sm font-semibold">Kategori</label>
+          <select
+            className="w-full border rounded p-2"
+            value={selectedKategori}
+            onChange={(e) => {
+              setSelectedKategori(e.target.value as any);
+              setSelectedSubKategori("");
+            }}
+          >
+            {kategoriOptions.map((k) => (
+              <option key={k.key} value={k.key}>
+                {k.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* SUB KATEGORI */}
+        <div>
+          <label className="text-sm font-semibold">Detail</label>
+          <select
+            className="w-full border rounded p-2"
+            value={selectedSubKategori}
+            onChange={(e) => setSelectedSubKategori(e.target.value)}
+          >
+            <option value="">ALL</option>
+            {Array.from(
+              new Set(
+                dataList
+                  .map((d) => d[selectedKategori as keyof AuditData])
+                  .filter(Boolean)
+              )
+            ).map((v: any, i) => (
+              <option key={i} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* PERIODE */}
+        <div>
+          <label className="text-sm font-semibold">Periode</label>
+          <select
+            className="w-full border rounded p-2"
+            value={periodeType}
+            onChange={(e) => setPeriodeType(e.target.value as any)}
+          >
+            <option value="tahun">1 Tahun</option>
+            <option value="bulan">1 Bulan</option>
+          </select>
+        </div>
+
+        {/* BULAN / TAHUN */}
+        <div>
+          <label className="text-sm font-semibold">
+            {periodeType === "tahun" ? "Tahun" : "Bulan"}
+          </label>
+
+          {periodeType === "tahun" ? (
+            <select
+              className="w-full border rounded p-2"
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+            >
+              {[...new Set(dataList.map(d => d.tahun))].map((y, i) => (
+                <option key={i} value={y}>{y}</option>
+              ))}
+            </select>
+          ) : (
+<select
+  value={selectedKategoriMonth}
+  onChange={(e) => setSelectedKategoriMonth(e.target.value)}
+>
+              {monthOrder.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+          )}
+        </div>
+      </div>
+
+      {/* ================= DATA PROCESS ================= */}
+      {(() => {
+        const filteredData = dataList.filter((d) => {
+          if (!d[selectedKategori as keyof AuditData]) return false;
+
+          if (
+            selectedSubKategori &&
+            d[selectedKategori as keyof AuditData] !== selectedSubKategori
+          ) return false;
+
+          if (periodeType === "tahun") {
+            return d.tahun === selectedYear;
+          }
+
+          return (
+            d.tahun === selectedYear &&
+            d.bulan?.toUpperCase() === selectedMonth
+          );
+        });
+
+        const pieData = [
+          { name: "Sudah", value: filteredData.filter(d => d.status === "Sudah").length },
+          { name: "Belum", value: filteredData.filter(d => d.status === "Belum").length },
+          { name: "On Progress", value: filteredData.filter(d => d.status === "On Progress").length },
+        ];
+
+        const barData = Object.values(
+          filteredData.reduce((acc: any, d: any) => {
+            const bulan = d.bulan;
+            if (!bulan) return acc;
+            if (!acc[bulan]) acc[bulan] = { bulan, total: 0 };
+            acc[bulan].total++;
+            return acc;
+          }, {})
+        ).sort(
+          (a: any, b: any) =>
+            monthOrder.indexOf(a.bulan) - monthOrder.indexOf(b.bulan)
+        );
+        
+        const detailKey = selectedKategori as keyof AuditData;
+
+// ambil semua detail unik
+const detailList = Array.from(
+  new Set(filteredData.map(d => d[detailKey]).filter(Boolean))
+);
+
+// bentuk data per bulan
+const detailPerBulanData = Object.values(
+  filteredData.reduce((acc: any, d: any) => {
+    const bulan = d.bulan;
+    const detail = d[detailKey];
+    if (!bulan || !detail) return acc;
+
+    if (!acc[bulan]) acc[bulan] = { bulan };
+    acc[bulan][detail] = (acc[bulan][detail] || 0) + 1;
+
+    return acc;
+  }, {})
+).sort(
+  (a: any, b: any) =>
+    monthOrder.indexOf(a.bulan) - monthOrder.indexOf(b.bulan)
+);
+
+        return (
+          <>
+            {/* ================= PIE CHART ================= */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-white p-4 rounded-xl shadow">
+                <h3 className="font-semibold mb-4">Status Overview</h3>
+                <ResponsiveContainer width="100%" height={260}>
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      dataKey="value"
+                      nameKey="name"
+                      outerRadius={90}
+                      label
+                    >
+                      {pieData.map((_, i) => (
+                        <Cell
+                          key={i}
+                          fill={["#22c55e", "#facc15", "#3b82f6"][i]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* ================= SUMMARY ================= */}
+              <div className="bg-white p-4 rounded-xl shadow flex flex-col justify-center gap-3">
+                <div className="text-lg font-bold">
+                  Total Data: {filteredData.length}
+                </div>
+                <div className="text-green-600">Sudah: {pieData[0].value}</div>
+                <div className="text-yellow-600">Belum: {pieData[1].value}</div>
+                <div className="text-blue-600">On Progress: {pieData[2].value}</div>
+              </div>
+            </div>
+
+            {/* ================= BAR CHART ================= */}
+            <div className="bg-white p-4 rounded-xl shadow">
+              <h3 className="font-semibold mb-4">Trend per Bulan</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={barData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="bulan" />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Bar dataKey="total" radius={[6, 6, 0, 0]}>
+                    <LabelList dataKey="total" position="top" />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </>
+        );
+      })()}
+    </div>
+  </PageWrapper>
+)}
+
+
+
+
 {/* === Laporan Cabang Detail === */}
 {activePage === "laporanCabangDetail" && (
   <div className="min-h-screen w-full bg-gray-50 flex justify-center p-8 overflow-x-hidden">
