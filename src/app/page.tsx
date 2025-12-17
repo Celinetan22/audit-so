@@ -2481,6 +2481,10 @@ const handleSaveEditModal = useCallback(async (data: any) => {
     return `${d}/${m}/${y}`;
   };
 
+const [parsedAwal, parsedAkhir] = data.realisasi
+  ? data.realisasi.split(" - ")
+  : ["", ""];
+
   const formatRange = (awal: string, akhir: string) => {
     if (awal && akhir) return `${toDDMMYYYY(awal)} - ${toDDMMYYYY(akhir)}`;
     if (awal) return toDDMMYYYY(awal);
@@ -2501,12 +2505,13 @@ const handleSaveEditModal = useCallback(async (data: any) => {
   // ============================
   // Format Realisasi
   // ============================
-  const finalRealisasiDB = formatRange(
-    data.realisasiAwal || "",
-    data.realisasiAkhir || ""
-  ) || oldData.tanggal_realisasi_full;
+const finalRealisasiDB = formatRange(
+  parsedAwal || "",
+  parsedAkhir || ""
+) || oldData.tanggal_realisasi_full;
 
-  const finalRealisasiUI = finalRealisasiDB;
+const finalRealisasiUI = finalRealisasiDB;
+
 
   // ============================
   // PIC & TEAM
