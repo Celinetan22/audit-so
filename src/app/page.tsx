@@ -201,6 +201,12 @@ interface TimelineProps {
   end: string;   // tanggal realisasi
 }
 
+interface UpdatePlanItem {
+  id?: number | string;
+  no_laporan?: number | string;
+  // tambahkan field lain yang dipakai
+}
+
 const TimelineBox: React.FC<TimelineProps> = ({ start, end }) => {
   return (
     <div className="flex items-center gap-4">
@@ -415,6 +421,9 @@ export default function AuditApp() {
 const [filterNoLaporanUpdate, setFilterNoLaporanUpdate] = useState<string>("");
 const [expandedRowId, setExpandedRowId] = useState<number | null>(null);
 const [approvalMonthFilter, setApprovalMonthFilter] = useState<string>("");
+  
+const [updatePlanData, setUpdatePlanData] = useState<UpdatePlanItem[]>([]);
+
 
 const [isCollapsed, setIsCollapsed] = useState(false);
 const router = useRouter();
@@ -3060,7 +3069,14 @@ const filteredAndSortedUpdatePlanData = dataList
     return da.getTime() - db.getTime();
   });
 
-// PAGINATION (tetap sama)
+  // ✅ TARUH DI SINI (sebelum return)
+  const sortedUpdatePlanData = [...updatePlanData].sort(
+    (a, b) =>
+      (Number(a.no_laporan) || 0) - (Number(b.no_laporan) || 0)
+  );
+
+
+// ION (tetap sama)
 const paginatedUpdatePlanData = filteredAndSortedUpdatePlanData.slice(
   (currentPageUpdate - 1) * rowsPerPageUpdate,
   currentPageUpdate * rowsPerPageUpdate
@@ -5354,8 +5370,9 @@ useEffect(() => {
       </td>
     </tr>
   ) : (
-    paginatedUpdatePlanData.map((d, i) => (
-      <tr key={d.id || i} className="text-center">
+paginatedUpdatePlanData.map((d, i) => (
+  <tr key={d.id || i} className="text-center">
+
 
         {/* Checkbox Pilih Baris */}
         <td className="p-2 border border-gray-300">
