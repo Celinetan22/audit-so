@@ -5731,16 +5731,32 @@ onClick={() => {
   <input
     type="date"
     value={editingData.tanggalAwal || ""}
-    onChange={(e) => {
-      const newDate = e.target.value;
-      const week = getWeekNumber(newDate);
+   onChange={(e) => {
+  const newDate = e.target.value;
+  const dateObj = new Date(newDate);
 
-      setEditingData({
-        ...editingData,
-        tanggalAwal: newDate,
-        minggu: week.toString(),   // tetap update minggu otomatis
-      });
-    }}
+  // safety check
+  if (!editingData.bulan || !editingData.tahun) {
+    setEditingData({
+      ...editingData,
+      tanggalAwal: newDate,
+    });
+    return;
+  }
+
+  const week = getWeekOfMonth(
+    dateObj.getDate(),     // day
+    editingData.bulan,     // nama bulan (JANUARI, dst)
+    editingData.tahun      // tahun
+  );
+
+  setEditingData({
+    ...editingData,
+    tanggalAwal: newDate,
+    minggu: week, // I – V
+  });
+}}
+
     className="w-full border border-blue-300 p-2 rounded-lg"
   />
 </div>
