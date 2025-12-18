@@ -3050,9 +3050,21 @@ const filteredAndSortedUpdatePlanData = dataList
         : true;
 
       // KATEGORI
-      const matchKategori = selectedKategoriUpdatePlan
-        ? String((d as any)[selectedKategoriUpdatePlan] || "").trim() !== ""
-        : true;
+// KATEGORI + DETAIL
+const matchKategori = selectedKategoriUpdatePlan
+  ? (() => {
+      const value = String(
+        (d as any)[selectedKategoriUpdatePlan] ?? ""
+      ).toLowerCase().trim();
+
+      // kalau tidak pilih detail → cukup ada isinya
+      if (!selectedSubKategori) return value !== "";
+
+      // kalau pilih detail → harus sama
+      return value === selectedSubKategori.toLowerCase().trim();
+    })()
+  : true;
+
 
       // NO LAPORAN
       const matchNoLaporanUpdate =
@@ -5191,21 +5203,23 @@ useEffect(() => {
 
 
 
-  {/* Filter Kategori */}
-  <select
-    value={selectedKategoriUpdatePlan}
-    onChange={(e) => setSelectedKategoriUpdatePlan(e.target.value)}
-    className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm 
-               focus:ring-2 focus:ring-blue-400 focus:outline-none transition"
-  >
-    <option value="">Semua Kategori</option>
-    <option value="jabodetabek">Jabodetabek</option>
-    <option value="luarJabodetabek">Luar Jabodetabek</option>
-    <option value="warehouse">Warehouse</option>
-    <option value="modern">Modern</option>
-    <option value="tradisional">Tradisional</option>
-    <option value="whz">WH-Z</option>
-  </select>
+{/* Filter Kategori */}
+<select
+  value={selectedKategoriUpdatePlan}
+  onChange={(e) => setSelectedKategoriUpdatePlan(e.target.value)}
+  className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm
+             focus:ring-2 focus:ring-blue-400 focus:outline-none transition"
+>
+  <option value="">Semua Kategori</option>
+  <option value="jabodetabek">Jabodetabek</option>
+  <option value="luarJabodetabek">Luar Jabodetabek</option>
+  <option value="cabang">Cabang</option> {/* ✅ TAMBAH INI */}
+  <option value="warehouse">Warehouse</option>
+  <option value="modern">Modern</option>
+  <option value="tradisional">Tradisional</option>
+  <option value="whz">WH-Z</option>
+</select>
+
 
   
 
@@ -6312,28 +6326,36 @@ onClick={() => {
           </select>
         </div>
 
-        {/* SUB KATEGORI */}
-        <div>
-          <label className="text-sm font-semibold">Detail</label>
-          <select
-            className="w-full border rounded p-2"
-            value={selectedSubKategori}
-            onChange={(e) => setSelectedSubKategori(e.target.value)}
-          >
-            <option value="">ALL</option>
-            {Array.from(
-              new Set(
-                dataList
-                  .map((d) => d[selectedKategori as keyof AuditData])
-                  .filter(Boolean)
-              )
-            ).map((v: any, i) => (
-              <option key={i} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </div>
+{/* SUB KATEGORI */}
+<div>
+  <label className="text-sm font-semibold">Detail</label>
+  <select
+    className="w-full border rounded p-2"
+    value={selectedSubKategori}
+    onChange={(e) => setSelectedSubKategori(e.target.value)}
+  >
+    <option value="">ALL</option>
+
+    {/* 🔹 KHUSUS MODERN */}
+    {selectedKategori === "modern"
+      ? modernOptions.map((m) => (
+          <option key={m.id} value={m.name}>
+            {m.name}
+          </option>
+        ))
+      : Array.from(
+          new Set(
+            dataList
+              .map((d) => d[selectedKategori as keyof AuditData])
+              .filter(Boolean)
+          )
+        ).map((v: any, i) => (
+          <option key={i} value={v}>
+            {v}
+          </option>
+        ))}
+  </select>
+</div>
 
         {/* PERIODE */}
         <div>
