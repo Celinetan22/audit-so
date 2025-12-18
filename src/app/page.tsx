@@ -1798,12 +1798,10 @@ const handleApprovalUpdate = async (
 };
  
 
-
 const handleSubmitAll = async (e: React.FormEvent) => {
   e.preventDefault();
 
   const loadingToast = toast.loading("⏳ Menyimpan semua data...");
-  const year = new Date().getFullYear().toString().slice(2);
 
   try {
     for (const form of formList) {
@@ -1821,12 +1819,28 @@ const handleSubmitAll = async (e: React.FormEvent) => {
         continue;
       }
 
+      if (!form.tahun || form.tahun.length !== 4) {
+        toast.error("Tahun tidak valid!");
+        continue;
+      }
+
+      // ===============================
+      //     TAHUN LAPORAN (FIX UTAMA)
+      // ===============================
+      const year = form.tahun.slice(2); // ✅ contoh: 2025 → 25
+
       // ===============================
       //     GENERATE NOMOR LAPORAN
       // ===============================
       const monthIndex = monthOrder.findIndex(
         (b) => b.toLowerCase() === form.bulan.toLowerCase()
       );
+
+      if (monthIndex === -1) {
+        toast.error(`Bulan tidak valid: ${form.bulan}`);
+        continue;
+      }
+
       const monthNum = String(monthIndex + 1).padStart(2, "0");
 
       const prefix = form.jenisData === "visit" ? "SOV" : "SONV";
@@ -1847,27 +1861,32 @@ const handleSubmitAll = async (e: React.FormEvent) => {
         .filter((n) => n && !isNaN(Number(n)))
         .map(Number);
 
-      const nextNumber = String((existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0) + 1)
-        .padStart(3, "0");
+      const nextNumber = String(
+        (existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0) + 1
+      ).padStart(3, "0");
 
       const noLaporan = `${prefix}/${year}/${monthNum}/${nextNumber}`;
 
       // ===============================
       //        FORMAT TANGGAL
       // ===============================
-      let tanggalEstimasiFull = null;
+      let tanggalEstimasiFull: string | null = null;
 
       if (form.tanggalAwal || form.tanggalAkhir) {
-        const dayStart = form.tanggalAwal ? String(form.tanggalAwal).padStart(2, "0") : "";
-        const dayEnd = form.tanggalAkhir ? String(form.tanggalAkhir).padStart(2, "0") : "";
-        const monthNumber = String(monthIndex + 1).padStart(2, "0");
+        const dayStart = form.tanggalAwal
+          ? String(form.tanggalAwal).padStart(2, "0")
+          : "";
+        const dayEnd = form.tanggalAkhir
+          ? String(form.tanggalAkhir).padStart(2, "0")
+          : "";
 
-        if (dayStart && dayEnd)
-          tanggalEstimasiFull = `${dayStart} - ${dayEnd}/${monthNumber}/${form.tahun}`;
-        else if (dayStart)
-          tanggalEstimasiFull = `${dayStart}/${monthNumber}/${form.tahun}`;
-        else if (dayEnd)
-          tanggalEstimasiFull = `${dayEnd}/${monthNumber}/${form.tahun}`;
+        if (dayStart && dayEnd) {
+          tanggalEstimasiFull = `${dayStart} - ${dayEnd}/${monthNum}/${form.tahun}`;
+        } else if (dayStart) {
+          tanggalEstimasiFull = `${dayStart}/${monthNum}/${form.tahun}`;
+        } else if (dayEnd) {
+          tanggalEstimasiFull = `${dayEnd}/${monthNum}/${form.tahun}`;
+        }
       }
 
       // ===============================
@@ -1876,11 +1895,13 @@ const handleSubmitAll = async (e: React.FormEvent) => {
       const allPIC = [
         ...form.pic,
         ...(form.customPic
-          ? form.customPic.split(",").map((x) => x.trim()).filter(Boolean)
+          ? form.customPic
+              .split(",")
+              .map((x) => x.trim())
+              .filter(Boolean)
           : []),
       ];
 
-      const finalPIC = allPIC;
       const finalTeam = allPIC.length === 1 ? allPIC : [];
 
       // ===============================
@@ -1888,12 +1909,11 @@ const handleSubmitAll = async (e: React.FormEvent) => {
       // ===============================
       const payload: any = {
         no_laporan: noLaporan,
-        pic: finalPIC,
+        pic: allPIC,
         team: finalTeam,
 
         bulan: form.bulan.toUpperCase(),
         minggu: form.minggu,
-        tanggal_estimasi: tanggalEstimasiFull,
         tanggal_estimasi_full: tanggalEstimasiFull,
 
         tahun: form.tahun,
@@ -1901,21 +1921,20 @@ const handleSubmitAll = async (e: React.FormEvent) => {
         luar_jabodetabek: form.luarJabodetabek,
 
         cabang: form.cabang,
-
         warehouse: form.warehouse,
         tradisional: form.tradisional,
         modern: form.modern,
         whz: form.whz,
+
         description: form.description,
         status: "Belum",
-
         company: form.company,
         jenisData: form.jenisData,
         created_at: new Date().toISOString(),
       };
 
-      // 🔥 Tambahkan anak cabang HANYA jika user memilih
-      if (form.anakCabang && form.anakCabang.trim() !== "") {
+      // 🔥 Anak cabang optional
+      if (form.anakCabang?.trim()) {
         payload.anak_cabang = form.anakCabang;
       }
 
@@ -1955,7 +1974,7 @@ const handleSubmitAll = async (e: React.FormEvent) => {
     toast.success("✅ Semua data berhasil disimpan!", { id: loadingToast });
 
     // ===============================
-    //    RESET FORM KEMBALI 1
+    //    RESET FORM
     // ===============================
     setFormList([
       {
@@ -1981,10 +2000,11 @@ const handleSubmitAll = async (e: React.FormEvent) => {
     ]);
 
   } catch (err: any) {
-    console.error("❌ Error submit:", err.message || err);
+    console.error("❌ Error submit:", err);
     toast.error("Gagal menyimpan data!", { id: loadingToast });
   }
 };
+
 
 
 
