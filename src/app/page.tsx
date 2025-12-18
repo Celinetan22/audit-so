@@ -7,6 +7,7 @@ import { saveAs } from "file-saver";
 import { highlightText } from "@/lib/highlightText";
 import toast from "react-hot-toast";
 import PICTabsPage from "@/components/PICTabsPage";
+import MasterLanding from "@/components/MasterLanding";
 
 
 import Pagination from "@/components/Pagination";
@@ -20,7 +21,8 @@ import AdminOnly from "@/components/AdminOnly";
 import KelolaModern from "@/components/KelolaModern";
 import KelolaUser from "@/components/KelolaUser";
 
-import { Check, X } from "lucide-react";
+
+import { Check, X,  } from "lucide-react";
 import { Plus, Download, ListChecks } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { RefreshCcw, Upload, Search, FileSpreadsheet, RotateCcw } from "lucide-react";
@@ -28,6 +30,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import PageWrapper from "@/components/PageWrapper";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+
 
 
 
@@ -66,6 +69,11 @@ import {
   ChevronUp,
   Menu,
   Calendar,
+  MapPin,
+  Globe,
+  Warehouse,
+  Store,
+  Boxes,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -129,6 +137,8 @@ type Cabang = {
   parent_id: number | null;
   children?: Cabang[];
 };
+
+
 
 const monthOrder = [
   "JANUARI",
@@ -3458,17 +3468,16 @@ useEffect(() => {
         ],
       },
       { key: "statusPlan", label: "Status Plan", icon: Database },
-      {
-        key: "kelola",
-        label: "Kelola",
-        icon: Settings,
-        children: [
-          { key: "kelolaPIC", label: "Kelola PIC", icon: User },
-          { key: "kelolaCabang", label: "Kelola Cabang", icon: Building },
-          { key: "kelolaModern", label: "Kelola Modern", icon: ShoppingCart },
-          { key: "kelolaUser", label: "Kelola User", icon: Users },
-        ],
-      },
+      
+        // 🔥 INI YANG KURANG
+  {
+    key: "kelolaMaster",
+    label: "Kelola Master",
+    icon: Settings,
+  },
+
+
+
     ].map((item) => (
       <div key={item.key} className="mb-1">
         {/* === BUTTON MENU === */}
@@ -3616,32 +3625,12 @@ useEffect(() => {
   </motion.div>
 )}
 
-
-{activePage === "kelolaPIC" && (
+{activePage === "kelolaMaster" && (
   <AdminOnly>
-    <KelolaPIC />
+    <MasterLanding />
   </AdminOnly>
 )}
 
-{activePage === "kelolaCabang" && (
-  <AdminOnly>
-    <KelolaCabang />
-  </AdminOnly>
-)}
-
-
-
-{activePage === "kelolaModern" && (
-  <AdminOnly>
-    <KelolaModern />
-  </AdminOnly>
-)}
-
-{activePage === "kelolaUser" && (
-  <AdminOnly>
-    <KelolaUser />
-  </AdminOnly>
-)}
 
 {activePage === "dashboard" && (
   <div className="w-full mx-auto p-8 space-y-10 text-slate-700 bg-gradient-to-b from-slate-50 to-slate-100 min-h-screen overflow-x-hidden">
