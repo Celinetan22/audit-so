@@ -423,6 +423,7 @@ const [selectedYearUpdatePlan, setSelectedYearUpdatePlan] =
   const [periodeType, setPeriodeType] = useState<"tahun" | "bulan">("tahun");
   const [selectedKategoriMonth, setSelectedKategoriMonth] = useState<string>("JANUARI");
   const [clickedBulan, setClickedBulan] = useState<string | null>(null);
+  const [selectedYearStatusPlan, setSelectedYearStatusPlan] = useState("");
 
 
   
@@ -2244,27 +2245,45 @@ const filteredStatusPlanData = dataList.filter((d) => {
   let matchStatus = false;
   const todayNum = today.getDate();
 
-if (statusTab === "On Progress") {
-  matchStatus =
-    d.status === "On Progress" || // 🔹 tambahkan ini agar status dari DB juga terdeteksi
-    (
-      d.bulan?.toUpperCase() === currentMonth &&
-      !!d.tanggal &&
-      isTodayInRange(d.tanggal, todayNum)
-    );
-} else if (statusTab === "Belum") {
-  matchStatus =
-    d.status === "Belum" &&
-    !(
-      d.bulan?.toUpperCase() === currentMonth &&
-      !!d.tanggal &&
-      isTodayInRange(d.tanggal, todayNum)
-    );
-} else if (statusTab === "Sudah") {
-  matchStatus = d.status === "Sudah";
-}
+  // ===============================
+  // 🔹 STATUS LOGIC (TETAP)
+  // ===============================
+  if (statusTab === "On Progress") {
+    matchStatus =
+      d.status === "On Progress" ||
+      (
+        d.bulan?.toUpperCase() === currentMonth &&
+        !!d.tanggal &&
+        isTodayInRange(d.tanggal, todayNum)
+      );
+  } else if (statusTab === "Belum") {
+    matchStatus =
+      d.status === "Belum" &&
+      !(
+        d.bulan?.toUpperCase() === currentMonth &&
+        !!d.tanggal &&
+        isTodayInRange(d.tanggal, todayNum)
+      );
+  } else if (statusTab === "Sudah") {
+    matchStatus = d.status === "Sudah";
+  }
 
-  // filter PIC
+  // ===============================
+  // 🔹 FILTER TAHUN (BARU)
+  // ===============================
+  const tahunData =
+    d.tahun ||
+    d.tanggal?.split("/")?.[2] ||
+    (d.created_at
+      ? new Date(d.created_at).getFullYear().toString()
+      : "");
+
+  const matchYear =
+    !selectedYearStatusPlan || tahunData === selectedYearStatusPlan;
+
+  // ===============================
+  // 🔹 FILTER PIC
+  // ===============================
   const matchPic =
     !searchPicStatusPlan ||
     (Array.isArray(d.pic)
@@ -2275,12 +2294,16 @@ if (statusTab === "On Progress") {
           searchPicStatusPlan.toLowerCase()
         ));
 
-  // filter Bulan
+  // ===============================
+  // 🔹 FILTER BULAN
+  // ===============================
   const matchBulan =
     !searchBulanStatusPlan ||
     d.bulan?.toLowerCase() === searchBulanStatusPlan.toLowerCase();
 
-  // filter Search Text
+  // ===============================
+  // 🔹 FILTER SEARCH TEXT
+  // ===============================
   const searchText = searchTextStatusPlan.toLowerCase();
   const matchText =
     !searchText ||
@@ -2288,8 +2311,12 @@ if (statusTab === "On Progress") {
       String(val ?? "").toLowerCase().includes(searchText)
     );
 
-  return matchStatus && matchPic && matchBulan && matchText;
+  // ===============================
+  // 🔹 FINAL
+  // ===============================
+  return matchStatus && matchYear && matchPic && matchBulan && matchText;
 });
+
 
 
 
@@ -6799,10 +6826,43 @@ const detailPerBulanData = Object.values(
       return "Belum";
     };
 
-    // 🔹 Hitung total per status
-    const countSudah = dataList.filter((d) => getEffectiveStatus(d) === "Sudah").length;
-    const countOnProgress = dataList.filter((d) => getEffectiveStatus(d) === "On Progress").length;
-    const countBelum = dataList.filter((d) => getEffectiveStatus(d) === "Belum").length;
+const getTahunData = (d: AuditData) =>
+  d.tahun ||
+  d.tanggal?.split("/")?.[2] ||
+  (d.created_at
+    ? new Date(d.created_at).getFullYear().toString()
+    : "");
+
+const countSudah = dataList.filter((d) => {
+  if (
+    selectedYearStatusPlan &&
+    getTahunData(d) !== selectedYearStatusPlan
+  )
+    return false;
+
+  return getEffectiveStatus(d) === "Sudah";
+}).length;
+
+const countOnProgress = dataList.filter((d) => {
+  if (
+    selectedYearStatusPlan &&
+    getTahunData(d) !== selectedYearStatusPlan
+  )
+    return false;
+
+  return getEffectiveStatus(d) === "On Progress";
+}).length;
+
+const countBelum = dataList.filter((d) => {
+  if (
+    selectedYearStatusPlan &&
+    getTahunData(d) !== selectedYearStatusPlan
+  )
+    return false;
+
+  return getEffectiveStatus(d) === "Belum";
+}).length;
+
 
     const tabs = [
       { label: "Belum", color: "bg-yellow-500", count: countBelum},
@@ -6866,6 +6926,32 @@ const detailPerBulanData = Object.values(
           </option>
         ))}
       </select>
+
+<select
+  value={selectedYearStatusPlan}
+  onChange={(e) => setSelectedYearStatusPlan(e.target.value)}
+  className="border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+>
+  <option value="">Semua Tahun</option>
+  {[...new Set(
+    dataList.map(
+      (d) =>
+        d.tahun ||
+        d.tanggal?.split("/")?.[2] ||
+        (d.created_at
+          ? new Date(d.created_at).getFullYear().toString()
+          : "")
+    )
+  )]
+    .filter(Boolean)
+    .sort((a, b) => Number(b) - Number(a))
+    .map((year) => (
+      <option key={year} value={year}>
+        {year}
+      </option>
+    ))}
+</select>
+
 
       <input
         type="text"
