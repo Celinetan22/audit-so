@@ -1103,11 +1103,6 @@ const groupedByBulanStatus = dataList.reduce((acc: any, d) => {
 }, {});
 
 
-const statusbarChartData = Object.values(groupedByBulanStatus).sort(
-  (a: any, b: any) =>
-    monthOrder.findIndex((m) => m.toUpperCase() === a.bulan.toUpperCase()) -
-    monthOrder.findIndex((m) => m.toUpperCase() === b.bulan.toUpperCase())
-);
 
 
 
@@ -2332,40 +2327,56 @@ const percentBelum = totalData
 : 0;
 
 
-const groupedByBulanKategori = dataList.reduce((acc: any, d) => {
-  const bulanKey = d.bulan ? d.bulan.trim().toUpperCase() : "";
-  if (!bulanKey) return acc;
+const groupedByBulanKategori = dataList.reduce((acc: any, d: AuditData) => {
+  if (!d.bulan) return acc;
 
-  // 🔹 gunakan bulan saja sebagai key
-  if (!acc[bulanKey]) {
-    acc[bulanKey] = {
+  // 🔑 ambil tahun valid
+  const tahun =
+    d.tahun ||
+    d.tanggal_estimasi_full?.split("/")?.[2] ||
+    (d.created_at
+      ? new Date(d.created_at).getFullYear().toString()
+      : "");
+
+  if (!tahun) return acc;
+
+  const bulanKey = d.bulan.toUpperCase();
+  const key = `${tahun}-${bulanKey}`; // 🔥 KOMBINASI
+
+  if (!acc[key]) {
+    acc[key] = {
+      tahun,
       bulan: bulanKey,
       jabodetabek: 0,
       luarJabodetabek: 0,
       cabang: 0,
-      whz: 0,
+      warehouse: 0,
       modern: 0,
       tradisional: 0,
     };
   }
 
-  // Tambahkan jumlah kategori
-  if (d.jabodetabek) acc[bulanKey].jabodetabek++;
-  if (d.luarJabodetabek) acc[bulanKey].luarJabodetabek++;
-  if (d.cabang) acc[bulanKey].cabang++;
-  if (d.whz) acc[bulanKey].whz++;
-  if (d.modern) acc[bulanKey].modern++;
-  if (d.tradisional) acc[bulanKey].tradisional++;
+  if (d.jabodetabek) acc[key].jabodetabek++;
+  if (d.luarJabodetabek) acc[key].luarJabodetabek++;
+  if (d.cabang) acc[key].cabang++;
+  if (d.warehouse) acc[key].warehouse++;
+  if (d.modern) acc[key].modern++;
+  if (d.tradisional) acc[key].tradisional++;
 
   return acc;
 }, {});
 
 
-const barChartData = Object.values(groupedByBulanKategori).sort(
-  (a: any, b: any) =>
-    monthOrder.findIndex((m) => m.toUpperCase() === a.bulan.toUpperCase()) -
-    monthOrder.findIndex((m) => m.toUpperCase() === b.bulan.toUpperCase())
-);
+const barChartData = Object.values(groupedByBulanKategori)
+  .filter((d: any) =>
+    selectedYear ? d.tahun === selectedYear : true
+  )
+  .sort(
+    (a: any, b: any) =>
+      monthOrder.indexOf(a.bulan) -
+      monthOrder.indexOf(b.bulan)
+  );
+
 
 
 
@@ -5235,19 +5246,16 @@ useEffect(() => {
   </select>
 
 <select
-  value={selectedYearUpdatePlan}
-  onChange={(e) => setSelectedYearUpdatePlan(e.target.value)}
+  value={selectedYear}
+  onChange={(e) => setSelectedYear(e.target.value)}
   className="border rounded px-2 py-1"
 >
-  <option value="">Semua Tahun</option>
-
-  {yearOptions.map((y) => (
-    <option key={y} value={y}>
-      {y}
+  {yearOptions.map((year) => (
+    <option key={year} value={year}>
+      {year}
     </option>
   ))}
 </select>
-
 
 
  <select
