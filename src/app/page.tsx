@@ -398,7 +398,10 @@ export default function AuditApp() {
   | { key: string; position: { top: number; left: number } }
 >(null);
 
-  
+const [selectedYearUpdatePlan, setSelectedYearUpdatePlan] =
+  useState("");
+
+
   const [filterBulan, setFilterBulan] = useState(""); // contoh: "MEI"
   const [teamOptions, setTeamOptions] = useState<string[]>([]);
   const [showSwitchAccount, setShowSwitchAccount] = useState(false);
@@ -472,6 +475,28 @@ const openAnakCabangModal = (anak: any) => {
 };
 
 
+const yearOptions = React.useMemo(() => {
+  const years = dataList
+    .map((d) => {
+      if (d.tahun) return d.tahun.toString().trim();
+
+      if (d.tanggal_estimasi_full) {
+        const y = d.tanggal_estimasi_full.split("/")?.[2];
+        return y?.trim() || null;
+      }
+
+      if (d.created_at) {
+        return new Date(d.created_at).getFullYear().toString();
+      }
+
+      return null;
+    })
+    .filter((y): y is string => !!y && /^\d{4}$/.test(y));
+
+  return Array.from(new Set(years)).sort(
+    (a, b) => Number(b) - Number(a)
+  );
+}, [dataList]);
 
 
 const findCabangByName = (name: string): Cabang | null => {
@@ -3026,20 +3051,46 @@ const filteredAndSortedUpdatePlanData = dataList
         .toLocaleString("id-ID", { month: "long" })
         .toUpperCase();
 
-      // AMBIL BULAN DARI tanggal_estimasi_full (fallback ke d.estimasi atau d.bulan jika kosong)
-      let monthFromEstimasiFull = getMonthFromTanggalEstimasi(d.tanggal_estimasi_full);
+      // ===============================
+      // ➕ FILTER TAHUN (FIX 2026)
+      // ===============================
+      const dataYear =
+        d.tahun?.toString() ||
+        (d.tanggal_estimasi_full
+          ? d.tanggal_estimasi_full.split("/")?.[2]
+          : null) ||
+        (d.created_at
+          ? new Date(d.created_at).getFullYear().toString()
+          : null);
+
+      const matchTahun =
+        !selectedYearUpdatePlan ||
+        dataYear === selectedYearUpdatePlan;
+
+      // ===============================
+      // 📅 AMBIL BULAN
+      // ===============================
+      let monthFromEstimasiFull = getMonthFromTanggalEstimasi(
+        d.tanggal_estimasi_full
+      );
+
       if (!monthFromEstimasiFull) {
-        // fallback: kalau ada field estimasi yang berupa "jan" / "Januari"
-        monthFromEstimasiFull = normalizeMonthInput((d as any).estimasi || d.bulan || "");
+        monthFromEstimasiFull = normalizeMonthInput(
+          (d as any).estimasi || d.bulan || ""
+        );
       }
 
-      // AUTO ON PROGRESS
+      // ===============================
+      // 🔄 AUTO ON PROGRESS
+      // ===============================
       const isAutoOnProgress =
         monthFromEstimasiFull === currentMonth &&
         !!d.tanggal &&
         isTodayInRange(d.tanggal, todayNum);
 
-      // STATUS TAB
+      // ===============================
+      // 🚦 STATUS TAB
+      // ===============================
       const matchStatus =
         statusTab === "Belum"
           ? d.status === "Belum"
@@ -3049,59 +3100,81 @@ const filteredAndSortedUpdatePlanData = dataList
           ? d.status === "Sudah"
           : true;
 
-      // FILTER BULAN: normalisasi input selectedBulanUpdatePlan
-      const normSelectedBulan = normalizeMonthInput(selectedBulanUpdatePlan);
-
+      // ===============================
+      // 📆 FILTER BULAN
+      // ===============================
+      const normSelectedBulan = normalizeMonthInput(
+        selectedBulanUpdatePlan
+      );
       const matchBulan = normSelectedBulan
         ? monthFromEstimasiFull === normSelectedBulan
         : true;
 
-      // PIC
+      // ===============================
+      // 👤 PIC
+      // ===============================
       const matchPic = searchPicUpdatePlan
         ? Array.isArray(d.pic)
           ? d.pic.some((p: string) =>
-              p.toLowerCase().includes(searchPicUpdatePlan.toLowerCase())
+              p
+                .toLowerCase()
+                .includes(searchPicUpdatePlan.toLowerCase())
             )
-          : ((d.pic ?? "") as string)
+          : String(d.pic ?? "")
               .toLowerCase()
               .includes(searchPicUpdatePlan.toLowerCase())
         : true;
 
-      // TANGGAL
+      // ===============================
+      // 🗓️ TANGGAL
+      // ===============================
       const matchTanggal = searchTanggal
-        ? (d.tanggal ?? "").toLowerCase().includes(searchTanggal.toLowerCase())
+        ? (d.tanggal ?? "")
+            .toLowerCase()
+            .includes(searchTanggal.toLowerCase())
         : true;
 
-      // TEXT SEARCH (hati-hati: Object.values bisa punya object -- stringify aman)
+      // ===============================
+      // 🔎 TEXT SEARCH
+      // ===============================
       const matchText = searchText
         ? Object.values(d).some((val) =>
-            String(val ?? "").toLowerCase().includes(searchText.toLowerCase())
+            String(val ?? "")
+              .toLowerCase()
+              .includes(searchText.toLowerCase())
           )
         : true;
 
-      // KATEGORI
-// KATEGORI + DETAIL
-const matchKategori = selectedKategoriUpdatePlan
-  ? (() => {
-      const value = String(
-        (d as any)[selectedKategoriUpdatePlan] ?? ""
-      ).toLowerCase().trim();
+      // ===============================
+      // 🗂️ KATEGORI + SUB
+      // ===============================
+      const matchKategori = selectedKategoriUpdatePlan
+        ? (() => {
+            const value = String(
+              (d as any)[selectedKategoriUpdatePlan] ?? ""
+            )
+              .toLowerCase()
+              .trim();
 
-      // kalau tidak pilih detail → cukup ada isinya
-      if (!selectedSubKategori) return value !== "";
+            if (!selectedSubKategori) return value !== "";
+            return (
+              value ===
+              selectedSubKategori.toLowerCase().trim()
+            );
+          })()
+        : true;
 
-      // kalau pilih detail → harus sama
-      return value === selectedSubKategori.toLowerCase().trim();
-    })()
-  : true;
-
-
-      // NO LAPORAN
+      // ===============================
+      // 🧾 NO LAPORAN
+      // ===============================
       const matchNoLaporanUpdate =
         !filterNoLaporanUpdate ||
-        (d.no_laporan ?? "").toLowerCase().includes(filterNoLaporanUpdate.toLowerCase());
+        (d.no_laporan ?? "")
+          .toLowerCase()
+          .includes(filterNoLaporanUpdate.toLowerCase());
 
       return (
+        matchTahun && // 🔥 FIX UTAMA 2026
         matchStatus &&
         matchBulan &&
         matchPic &&
@@ -3111,35 +3184,42 @@ const matchKategori = selectedKategoriUpdatePlan
         matchNoLaporanUpdate
       );
     } catch (err) {
-      console.error("Filter error for row:", d, err);
+      console.error("❌ Filter error:", d, err);
       return false;
     }
   })
   .sort((a, b) => {
-    // parsing tanggal_estimasi_full aman (fallback ke tanggal jika kosong)
     const parseDateSafe = (val?: string | null) => {
       if (!val) return null;
-      // format "22/01/2025" atau "22-24/01/2025"
       const parts = val.split("/");
       if (parts.length < 3) return null;
-      const dayPart = parts[0].includes("-") ? parts[0].split("-")[0] : parts[0];
+
+      const dayPart = parts[0].includes("-")
+        ? parts[0].split("-")[0]
+        : parts[0];
+
       const d = Number(dayPart);
       const m = Number(parts[1]) - 1;
       const y = Number(parts[2]);
+
       if (!y || isNaN(m) || isNaN(d)) return null;
       return new Date(y, m, d);
     };
 
-    const da = parseDateSafe(a.tanggal_estimasi_full) || parseDateSafe(a.tanggal) || new Date(0);
-    const db = parseDateSafe(b.tanggal_estimasi_full) || parseDateSafe(b.tanggal) || new Date(0);
+    const da =
+      parseDateSafe(a.tanggal_estimasi_full) ||
+      parseDateSafe(a.tanggal) ||
+      new Date(0);
+
+    const db =
+      parseDateSafe(b.tanggal_estimasi_full) ||
+      parseDateSafe(b.tanggal) ||
+      new Date(0);
+
     return da.getTime() - db.getTime();
   });
 
-  // ✅ TARUH DI SINI (sebelum return)
-  const sortedUpdatePlanData = [...updatePlanData].sort(
-    (a, b) =>
-      (Number(a.no_laporan) || 0) - (Number(b.no_laporan) || 0)
-  );
+
 
 
 // ION (tetap sama)
@@ -3148,39 +3228,24 @@ const paginatedUpdatePlanData = filteredAndSortedUpdatePlanData.slice(
   currentPageUpdate * rowsPerPageUpdate
 );
 
-  // Grouping
-  const groupedByCabang = dataList.reduce(
-    (acc: Record<string, Record<string, Record<string, string[]>>>, d) => {
-      // Lewati data jika cabang kosong
-      if (!d.cabang || d.cabang.trim() === "") return acc;
+const groupedByCabang = dataList
+  .filter(d => d.tahun === selectedYearUpdatePlan) // ➕ WAJIB
+  .reduce((acc, d) => {
+    if (!d.cabang || d.cabang.trim() === "") return acc;
 
-
-
-
-    const bulanKey = d.bulan ? d.bulan.toUpperCase() : ""; // 🔑 normalisasi bulan ke CAPS LOCK
-
-    if (!acc[bulanKey]) {
-      acc[bulanKey] = {};
-    }
-    if (!acc[bulanKey][d.cabang]) {
-      acc[bulanKey][d.cabang] = {};
-    }
+    const bulanKey = d.bulan ? d.bulan.toUpperCase() : "";
+    acc[bulanKey] ??= {};
+    acc[bulanKey][d.cabang] ??= {};
 
     if (Array.isArray(d.pic)) {
       d.pic.forEach((pic) => {
-        if (!pic || pic.trim() === "") return;
-        if (!acc[bulanKey][d.cabang][pic]) {
-          acc[bulanKey][d.cabang][pic] = [];
-        }
-        if (d.tanggal && d.tanggal.trim() !== "") {
-          acc[bulanKey][d.cabang][pic].push(d.tanggal);
-        }
+        if (!pic) return;
+        acc[bulanKey][d.cabang][pic] ??= [];
+        if (d.tanggal) acc[bulanKey][d.cabang][pic].push(d.tanggal);
       });
     }
     return acc;
-  },
-  {} as Record<string, Record<string, Record<string, string[]>>>
-);
+  }, {} as Record<string, Record<string, Record<string, string[]>>>);
 
 
   // Membersihkan entri cabang kosong setelah pengelompokan
@@ -3195,54 +3260,38 @@ const paginatedUpdatePlanData = filteredAndSortedUpdatePlanData.slice(
   });
 
 
-  const groupedByPic = dataList.reduce(
-  (acc: Record<string, Record<string, { cabang: string; tanggal: string }[]>>, d) => {
-    if (!d.cabang || d.cabang.trim() === "") return acc;
+ const groupedByPic = dataList
+  .filter(d => d.tahun === selectedYearUpdatePlan) // ➕ WAJIB
+  .reduce((acc, d) => {
+    if (!d.cabang || !Array.isArray(d.pic)) return acc;
 
-
-    const bulanKey = d.bulan ? d.bulan.toUpperCase() : ""; // 🔑 selalu CAPS LOCK
-
-    if (Array.isArray(d.pic)) {
-      d.pic.forEach((pic) => {
-        if (!pic || pic.trim() === "") return;
-
-        if (!acc[pic]) acc[pic] = {};
-        if (!acc[pic][bulanKey]) acc[pic][bulanKey] = [];
-
-        acc[pic][bulanKey].push({
-          cabang: d.cabang,
-          tanggal: d.tanggal,
-        });
+    const bulanKey = d.bulan ? d.bulan.toUpperCase() : "";
+    d.pic.forEach((pic) => {
+      if (!pic) return;
+      acc[pic] ??= {};
+      acc[pic][bulanKey] ??= [];
+      acc[pic][bulanKey].push({
+        cabang: d.cabang,
+        tanggal: d.tanggal,
       });
-    }
+    });
     return acc;
-  },
-  {} as Record<string, Record<string, { cabang: string; tanggal: string }[]>>
-);
+  }, {} as Record<string, Record<string, { cabang: string; tanggal: string }[]>>);
+
 
 const filteredFullData = dataList
   .filter((d) => {
+    const matchTahun =
+      !selectedYearUpdatePlan || d.tahun === selectedYearUpdatePlan;
+
     const noLaporan = (d.no_laporan ?? "").trim();
     const bulan = (d.bulan ?? "").toLowerCase();
-    const picList = Array.isArray(d.pic)
-      ? d.pic.map((p) => p.toLowerCase())
-      : [String(d.pic ?? "").toLowerCase()];
-
-    // ✅ Deteksi jenis data (case-insensitive)
-    const jenis = (
-      d.jenisData ??
-      (noLaporan.toUpperCase().startsWith("SOV") ? "visit" :
-       noLaporan.toUpperCase().startsWith("SONV") ? "non-visit" : "")
-    ).toLowerCase();
 
     const matchSearch =
       !searchFull ||
       Object.values(d).some((val) =>
         String(val ?? "").toLowerCase().includes(searchFull.toLowerCase())
       );
-
-    const matchPic =
-      !selectedPicFull || picList.some((p) => p.includes(selectedPicFull.toLowerCase()));
 
     const matchBulan =
       !selectedBulanFull || bulan === selectedBulanFull.toLowerCase();
@@ -3255,13 +3304,12 @@ const filteredFullData = dataList
       filterNoLaporan === ""
         ? true
         : filterNoLaporan === "ada"
-        ? !!noLaporan && noLaporan !== ""
-        : !noLaporan || noLaporan === "";
-
+        ? !!noLaporan
+        : !noLaporan;
 
     return (
+      matchTahun &&      // ✅ PENTING
       matchSearch &&
-      matchPic &&
       matchBulan &&
       matchKategori &&
       matchNoLaporan
@@ -3270,8 +3318,11 @@ const filteredFullData = dataList
   .sort((a, b) => {
     const monthA = getMonthNumber(a.bulan || "");
     const monthB = getMonthNumber(b.bulan || "");
-    return monthA === monthB ? (b.id ?? 0) - (a.id ?? 0) : monthA - monthB;
+    return monthA === monthB
+      ? (b.id ?? 0) - (a.id ?? 0)
+      : monthA - monthB;
   });
+
 
 
 
@@ -5182,6 +5233,22 @@ useEffect(() => {
       </option>
     ))}
   </select>
+
+<select
+  value={selectedYearUpdatePlan}
+  onChange={(e) => setSelectedYearUpdatePlan(e.target.value)}
+  className="border rounded px-2 py-1"
+>
+  <option value="">Semua Tahun</option>
+
+  {yearOptions.map((y) => (
+    <option key={y} value={y}>
+      {y}
+    </option>
+  ))}
+</select>
+
+
 
  <select
   value={selectedBulanUpdatePlan}
