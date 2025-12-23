@@ -401,7 +401,7 @@ export default function AuditApp() {
 const [selectedYearUpdatePlan, setSelectedYearUpdatePlan] =
   useState("");
 
-
+  
   const [filterBulan, setFilterBulan] = useState(""); // contoh: "MEI"
   const [teamOptions, setTeamOptions] = useState<string[]>([]);
   const [showSwitchAccount, setShowSwitchAccount] = useState(false);
@@ -2642,14 +2642,18 @@ const finalRealisasiUI = finalRealisasiDB;
   // ============================
   // PIC & TEAM
   // ============================
-  const combinedPic = [
-    ...(Array.isArray(data.pic) ? data.pic : oldData.pic || []),
-    ...(data.customPic
-      ? data.customPic.split(",").map((x: string) => x.trim())
-      : []),
-  ].filter(Boolean);
+  // PIC
+const finalPic = [
+  ...(Array.isArray(data.pic) ? data.pic : oldData.pic || []),
+  ...(data.customPic
+    ? data.customPic.split(",").map((x: string) => x.trim())
+    : []),
+].filter(Boolean);
 
-  const finalTeam = combinedPic.length === 1 ? combinedPic : [];
+// TEAM (AMBIL DARI MODAL)
+const finalTeam = Array.isArray(data.team)
+  ? data.team
+  : oldData.team || [];
 
   // ============================
   // Build Data untuk DB
@@ -2663,8 +2667,8 @@ const finalRealisasiUI = finalRealisasiDB;
     tanggal_realisasi: finalRealisasiDB,
     tanggal_realisasi_full: finalRealisasiDB,
 
-    pic: combinedPic,
-    team: finalTeam,
+    pic: finalPic,
+  team: finalTeam,
 
     jabodetabek: data.jabodetabek ?? oldData.jabodetabek,
     luar_jabodetabek: data.luarJabodetabek ?? oldData.luarJabodetabek,
@@ -3578,7 +3582,9 @@ useEffect(() => {
       },
       { key: "statusPlan", label: "Status Plan", icon: Database },
       
-        // 🔥 INI YANG KURANG
+     
+  { key: "picSO", label: "PIC SO", icon: Users },
+        
   {
     key: "kelolaMaster",
     label: "Kelola Master",
@@ -6785,6 +6791,9 @@ const detailPerBulanData = Object.values(
   </div>
   </div>
 )}
+
+
+
 
 
 

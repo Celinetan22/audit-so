@@ -21,7 +21,7 @@ type AuditItem = {
   id?: number | string;
   pic: string | string[];
   bulan?: string;
-
+  tahun?: number | string;
   // Estimasi
   tanggal?: string;
   tanggalAwal?: string;
@@ -189,6 +189,8 @@ export default function PICTabsPage({
   const [selectedMonthFilter, setSelectedMonthFilter] = useState<string>("");
   const [showLines, setShowLines] = useState(true);
 
+const [selectedYear, setSelectedYear] = useState<string>("");
+
   const [selectedTablePIC, setSelectedTablePIC] = useState<string>("");
   const [selectedStatus, setSelectedStatus] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -231,9 +233,22 @@ const chartData = useMemo(() => {
     const row: Record<string, number | string> = { bulan: month.slice(0, 3) };
 
     selectedPIC.forEach((picName) => {
-      const picsInMonth = dataList.filter(
-        (item) => normalizeMonth(item.bulan) === month
-      );
+      const picsInMonth = dataList.filter((item) => {
+  const sameMonth = normalizeMonth(item.bulan) === month;
+
+  if (!sameMonth) return false;
+
+  if (selectedYear) {
+    const itemYear =
+      item.realisasi_bulan?.match(/\d{4}/)?.[0] ||
+      item.bulan?.match(/\d{4}/)?.[0];
+
+    if (itemYear !== selectedYear) return false;
+  }
+
+  return true;
+});
+
 
       const singleCount = picsInMonth.filter((i) => {
         const p = toPicArray(i.pic);
@@ -261,6 +276,16 @@ const chartData = useMemo(() => {
   });
 }, [selectedPIC, dataList, chartMode]);
 
+const yearOptions = useMemo(() => {
+  const years = dataList
+    .map((d) => d.tahun)
+    .filter(Boolean)
+    .map(String);
+
+  return Array.from(new Set(years)).sort(
+    (a, b) => Number(b) - Number(a)
+  );
+}, [dataList]);
 
 
 const getRealisasiRangeDays = (realisasi?: string) => {
@@ -285,54 +310,74 @@ const getRealisasiRangeDays = (realisasi?: string) => {
   /* ============================================
      TABLE FILTER
   ============================================ */
-  const filteredTable = useMemo(() => {
-    if (!selectedPIC || selectedPIC.length === 0) return [];
-    return dataList.filter((item) => {
-      const pics = toPicArray(item.pic);
+ const filteredTable = useMemo(() => {
+  if (!selectedPIC || selectedPIC.length === 0) return [];
 
-      if (selectedTablePIC && !pics.includes(selectedTablePIC)) return false;
+  return dataList.filter((item) => {
+    const pics = toPicArray(item.pic);
 
-      const matchPIC = pics.some((p) => selectedPIC.includes(p));
-      if (!matchPIC) return false;
+    // ===== FILTER PIC =====
+    if (selectedTablePIC && !pics.includes(selectedTablePIC)) return false;
 
-      if (activeTab === "single" && pics.length !== 1) return false;
-      if (activeTab === "group" && pics.length <= 1) return false;
+    const matchPIC = pics.some((p) => selectedPIC.includes(p));
+    if (!matchPIC) return false;
 
-      if (selectedMonthFromChart) {
-        const fullMonth = MONTHS.find((m) =>
-          m.startsWith(selectedMonthFromChart.toUpperCase())
-        );
-        if (fullMonth && normalizeMonth(item.bulan) !== fullMonth) return false;
-      }
+    // ===== SINGLE / GROUP =====
+    if (activeTab === "single" && pics.length !== 1) return false;
+    if (activeTab === "group" && pics.length <= 1) return false;
 
-      if (selectedStatus && item.status !== selectedStatus) return false;
+    // ===== FILTER BULAN DARI CHART =====
+    if (selectedMonthFromChart) {
+      const fullMonth = MONTHS.find((m) =>
+        m.startsWith(selectedMonthFromChart.toUpperCase())
+      );
+      if (fullMonth && normalizeMonth(item.bulan) !== fullMonth) return false;
+    }
 
-      if (selectedMonthFilter && normalizeMonth(item.bulan) !== selectedMonthFilter)
-        return false;
+    // ===== FILTER STATUS =====
+    if (selectedStatus && item.status !== selectedStatus) return false;
 
-if (searchQuery.trim() !== "") {
-  const q = searchQuery.toLowerCase();
-  
-  // gabungkan semua value di row menjadi satu string  
-  const combined = Object.values(item)
-    .map((v) => (v ?? "").toString().toLowerCase())
-    .join(" ");
+    // ===== FILTER BULAN DROPDOWN =====
+    if (
+      selectedMonthFilter &&
+      normalizeMonth(item.bulan) !== selectedMonthFilter
+    )
+      return false;
 
-  if (!combined.includes(q)) return false;
-}
+    // ===== 🔥 FILTER TAHUN =====
+    if (selectedYear) {
+      const itemYear =
+        item.realisasi_bulan?.match(/\d{4}/)?.[0] ||
+        item.bulan?.match(/\d{4}/)?.[0];
 
-      return true;
-    });
-  }, [
-    selectedPIC,
-    selectedTablePIC,
-    activeTab,
-    selectedMonthFromChart,
-    selectedStatus,
-    selectedMonthFilter,
-    searchQuery,
-    dataList,
-  ]);
+      if (itemYear !== selectedYear) return false;
+    }
+
+    // ===== SEARCH =====
+    if (searchQuery.trim() !== "") {
+      const q = searchQuery.toLowerCase();
+
+      const combined = Object.values(item)
+        .map((v) => (v ?? "").toString().toLowerCase())
+        .join(" ");
+
+      if (!combined.includes(q)) return false;
+    }
+
+    return true;
+  });
+}, [
+  selectedPIC,
+  selectedTablePIC,
+  activeTab,
+  selectedMonthFromChart,
+  selectedStatus,
+  selectedMonthFilter,
+  selectedYear, // 🔥 WAJIB
+  searchQuery,
+  dataList,
+]);
+
 
 useEffect(() => {
   setPage(1);
@@ -345,7 +390,9 @@ useEffect(() => {
   selectedStatus,
   searchQuery,
   rowsPerPage,
+  selectedYear, // 🔥 tambah
 ]);
+
 
 
 
@@ -630,6 +677,27 @@ useEffect(() => {
               ))}
             </select>
           </div>
+
+{/* Tahun */}
+<div>
+  <label className="text-sm font-medium text-gray-700 mr-2">
+    Tahun:
+  </label>
+  <select
+    value={selectedYear}
+    onChange={(e) => setSelectedYear(e.target.value)}
+    className="border rounded-lg px-3 py-2 text-sm"
+  >
+    <option value="">Semua</option>
+    {yearOptions.map((y) => (
+      <option key={y} value={y}>
+        {y}
+      </option>
+    ))}
+  </select>
+</div>
+
+
 
           {/* Month */}
           <div>
