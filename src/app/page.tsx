@@ -3654,13 +3654,19 @@ useEffect(() => {
         {/* === BUTTON MENU === */}
         <motion.button
           whileTap={{ scale: 0.97 }}
-          onClick={() => {
-            if (item.children) {
-              setOpenMenu(openMenu === item.key ? null : item.key);
-            } else {
-              setActivePage(item.key);
-            }
-          }}
+onClick={() => {
+  if (item.children) {
+    setOpenMenu(openMenu === item.key ? null : item.key);
+  } else {
+    setActivePage(item.key);
+
+    // ✅ NAVIGASI KE HALAMAN
+    if (item.key === "picSO") {
+      router.push("/pic-so");
+    }
+  }
+}}
+
           className={`relative flex items-center gap-3 w-full px-3 py-2 rounded-lg transition-all duration-200 ${
             activePage === item.key
               ? "bg-blue-100 text-blue-700 font-semibold"
