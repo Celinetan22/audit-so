@@ -281,20 +281,22 @@ const handleSave = async () => {
             />
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-             <select
-  value={tipe ?? ""}
-  onChange={(e) =>
-    setTipe(
-      e.target.value === ""
-        ? null
-        : (e.target.value as "CABANG" | "STORE")
-    )
-  }
->
-  <option value="">Pilih Tipe</option>
-  <option value="CABANG">Cabang</option>
-  <option value="STORE">Store</option>
-</select>
+  {/* ===== KATEGORI ===== */}
+  <select
+    value={kategori}
+    onChange={(e) => {
+      setKategori(e.target.value);
+      setTipe(null); // reset tipe saat kategori berubah
+    }}
+    className="border rounded-lg px-3 py-2"
+  >
+    <option value="DALAM_KOTA">Dalam Kota</option>
+    <option value="LUAR_KOTA">Luar Kota</option>
+    <option value="WAREHOUSE">Warehouse</option>
+    <option value="TRADISIONAL">Traditional</option>
+    <option value="MODERN">Modern</option>
+    <option value="SERVICE_CENTER">Service Center</option>
+  </select>
 
 
               {(kategori === "DALAM_KOTA" ||
