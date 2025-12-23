@@ -773,6 +773,16 @@ const paginatedCabangData = filteredCabangData.slice(
 );
 
 const picPerBulan = dataList.reduce((acc: any, d: any) => {
+  // ===============================
+  // 🔥 FILTER TAHUN
+  // ===============================
+  const tahunData =
+    d.tahun || new Date().getFullYear().toString();
+
+  if (selectedYear && tahunData !== selectedYear) {
+    return acc;
+  }
+
   if (!d.bulan || !d.pic) return acc;
 
   const bulanKey = d.bulan.toUpperCase();
@@ -787,12 +797,24 @@ const picPerBulan = dataList.reduce((acc: any, d: any) => {
   return acc;
 }, {});
 
+
 const picPerBulanChart = Object.values(picPerBulan).sort(
   (a: any, b: any) =>
     monthOrder.indexOf(a.bulan) - monthOrder.indexOf(b.bulan)
 );
 
+
 const leaderPerBulan = dataList.reduce((acc: any, d: any) => {
+  // ===============================
+  // 🔥 FILTER TAHUN
+  // ===============================
+  const tahunData =
+    d.tahun || new Date().getFullYear().toString();
+
+  if (selectedYear && tahunData !== selectedYear) {
+    return acc;
+  }
+
   if (!d.bulan || !d.team) return acc;
 
   const bulanKey = d.bulan.toUpperCase();
@@ -807,10 +829,12 @@ const leaderPerBulan = dataList.reduce((acc: any, d: any) => {
   return acc;
 }, {});
 
+
 const leaderPerBulanChart = Object.values(leaderPerBulan).sort(
   (a: any, b: any) =>
     monthOrder.indexOf(a.bulan) - monthOrder.indexOf(b.bulan)
 );
+
 
 const [selectedBulanTEAM, setSelectedBulanTEAM] = useState("ALL");
 
