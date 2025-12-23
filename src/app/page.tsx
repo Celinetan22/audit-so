@@ -682,10 +682,21 @@ const barDataKategoriFilter = Object.values(
   dataList.reduce((acc: any, d: any) => {
     if (!d.bulan) return acc;
 
-    // Normalisasi bulan dari database
+    // ===============================
+    // 🔥 FILTER TAHUN
+    // ===============================
+    const tahunData =
+      d.tahun || new Date().getFullYear().toString();
+
+    if (selectedYear && tahunData !== selectedYear) {
+      return acc; // ⛔ skip data beda tahun
+    }
+
+    // ===============================
+    // NORMALISASI BULAN
+    // ===============================
     const bulanFull = d.bulan.trim().toUpperCase();
 
-    // Ambil singkatan aman (Jan, Feb, Mar…)
     const bulanShort =
       monthShortMap[bulanFull] ??
       bulanFull.substring(0, 3).charAt(0).toUpperCase() +
@@ -693,12 +704,15 @@ const barDataKategoriFilter = Object.values(
 
     if (!acc[bulanFull]) {
       acc[bulanFull] = {
-        bulanFull,     // dipakai untuk sorting
-        bulan: bulanShort, // dipakai untuk tampil
+        bulanFull,        // untuk sorting
+        bulan: bulanShort, // untuk tampilan
         total: 0,
       };
     }
 
+    // ===============================
+    // 🔥 FILTER KATEGORI
+    // ===============================
     if (d[kategoriChart]) {
       acc[bulanFull].total++;
     }
@@ -710,6 +724,9 @@ const barDataKategoriFilter = Object.values(
     monthOrder.findIndex((m) => m.toUpperCase() === a.bulanFull) -
     monthOrder.findIndex((m) => m.toUpperCase() === b.bulanFull)
 );
+
+
+
 
 const renderValue = (value: any) => {
   if (value == null) return "-";
