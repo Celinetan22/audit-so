@@ -429,6 +429,12 @@ const [selectedYearUpdatePlan, setSelectedYearUpdatePlan] =
   
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [selectedDashboardBulan, setSelectedDashboardBulan] = useState<string | null>(null);
+  const [selectedDashboardTahun, setSelectedDashboardTahun] = useState<string>(
+  new Date().getFullYear().toString()
+);
+  
+  
+  
   const [modernOptions, setModernOptions] = useState<{ id: number; name: string }[]>([]);
   const [reportFilesMap, setReportFilesMap] = useState<Record<string, boolean>>({});
   const [originalNoLaporan, setOriginalNoLaporan] = useState<string | null>(null);
@@ -1053,10 +1059,19 @@ const tahun = today.getFullYear();
 const currentMonth = new Date().toLocaleString("id-ID", { month: "long" }).toUpperCase();
 
 const bulanTarget = selectedDashboardBulan || currentMonth;
+const tahunTarget = selectedDashboardTahun;
 
-const bulanTargetData = dataList.filter(
-  (d) => d.bulan?.toUpperCase() === bulanTarget.toUpperCase()
-);
+
+const bulanTargetData = dataList.filter((d) => {
+  const matchBulan =
+    d.bulan?.toUpperCase() === bulanTarget.toUpperCase();
+
+  const matchTahun =
+    !tahunTarget || d.tahun === tahunTarget;
+
+  return matchBulan && matchTahun;
+});
+
 
 const totalBulanTarget = bulanTargetData.length;
 const sudahBulanTarget = bulanTargetData.filter((d) => d.status === "Sudah").length;
@@ -3969,9 +3984,11 @@ useEffect(() => {
   <div className="flex flex-wrap justify-between items-center mb-6">
     <h3 className="font-semibold text-slate-800 text-lg tracking-tight">
       Progress Bulan{" "}
-      <span className="text-blue-600">
-        {selectedDashboardBulan || currentMonth}
-      </span>
+<span className="text-blue-600">
+  {(selectedDashboardBulan || currentMonth)}{" "}
+  {selectedDashboardTahun || new Date().getFullYear()}
+</span>
+
     </h3>
     <p className="text-sm text-slate-500">
       Total Data:{" "}
@@ -4089,15 +4106,28 @@ useEffect(() => {
             })
           : barChartData
       }
-      onClick={(data: any) => {
-        const clickedBulan = data?.activeLabel || data?.payload?.bulan;
-        if (clickedBulan) {
-          const bulanUpper = clickedBulan.toUpperCase();
-          setSelectedDashboardBulan(bulanUpper);
-          setSelectedBulanPIC(bulanUpper); // 🔥 sinkron ke grafik kanan
-          toast.success(`Menampilkan data bulan ${clickedBulan}`);
-        }
-      }}
+onClick={(data: any) => {
+  const clickedBulan = data?.activeLabel || data?.payload?.bulan;
+
+  if (clickedBulan) {
+    const bulanUpper = clickedBulan.toUpperCase();
+
+    setSelectedDashboardBulan(bulanUpper);
+    setSelectedBulanPIC(bulanUpper);
+
+    // 🔥 INI KUNCI SINKRON TAHUN
+    setSelectedDashboardTahun(
+      selectedYear || new Date().getFullYear().toString()
+    );
+
+    toast.success(
+      `Menampilkan data ${clickedBulan} ${
+        selectedYear || new Date().getFullYear()
+      }`
+    );
+  }
+}}
+
     >
      <XAxis
   dataKey="bulan"
