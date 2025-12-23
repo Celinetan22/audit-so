@@ -238,13 +238,10 @@ const chartData = useMemo(() => {
 
   if (!sameMonth) return false;
 
-  if (selectedYear) {
-    const itemYear =
-      item.realisasi_bulan?.match(/\d{4}/)?.[0] ||
-      item.bulan?.match(/\d{4}/)?.[0];
+if (selectedYear) {
+  if (String(item.tahun) !== selectedYear) return false;
+}
 
-    if (itemYear !== selectedYear) return false;
-  }
 
   return true;
 });
@@ -274,7 +271,8 @@ const chartData = useMemo(() => {
 
     return row;
   });
-}, [selectedPIC, dataList, chartMode]);
+}, [selectedPIC, dataList, chartMode, selectedYear]);
+
 
 const yearOptions = useMemo(() => {
   const years = dataList
@@ -326,32 +324,37 @@ const getRealisasiRangeDays = (realisasi?: string) => {
     if (activeTab === "single" && pics.length !== 1) return false;
     if (activeTab === "group" && pics.length <= 1) return false;
 
-    // ===== FILTER BULAN DARI CHART =====
-    if (selectedMonthFromChart) {
-      const fullMonth = MONTHS.find((m) =>
-        m.startsWith(selectedMonthFromChart.toUpperCase())
-      );
-      if (fullMonth && normalizeMonth(item.bulan) !== fullMonth) return false;
-    }
+   // ===============================
+// FILTER TAHUN (SUMBER: item.tahun)
+// ===============================
+if (selectedYear) {
+  if (String(item.tahun) !== selectedYear) return false;
+}
 
-    // ===== FILTER STATUS =====
-    if (selectedStatus && item.status !== selectedStatus) return false;
+// ===============================
+// FILTER BULAN (CHART & DROPDOWN)
+// ===============================
+const itemMonth = normalizeMonth(item.bulan);
 
-    // ===== FILTER BULAN DROPDOWN =====
-    if (
-      selectedMonthFilter &&
-      normalizeMonth(item.bulan) !== selectedMonthFilter
-    )
-      return false;
+// 🔹 dari klik chart
+if (selectedMonthFromChart) {
+  const chartMonth = MONTHS.find((m) =>
+    m.startsWith(selectedMonthFromChart.toUpperCase())
+  );
 
-    // ===== 🔥 FILTER TAHUN =====
-    if (selectedYear) {
-      const itemYear =
-        item.realisasi_bulan?.match(/\d{4}/)?.[0] ||
-        item.bulan?.match(/\d{4}/)?.[0];
+  if (chartMonth && itemMonth !== chartMonth) return false;
+}
 
-      if (itemYear !== selectedYear) return false;
-    }
+// 🔹 dari dropdown bulan
+if (selectedMonthFilter) {
+  if (itemMonth !== selectedMonthFilter) return false;
+}
+
+// ===============================
+// FILTER STATUS
+// ===============================
+if (selectedStatus && item.status !== selectedStatus) return false;
+
 
     // ===== SEARCH =====
     if (searchQuery.trim() !== "") {
@@ -493,10 +496,56 @@ useEffect(() => {
 </div>
         </div>
 
-        <div className="w-full h-[400px] mt-4">
+        <div className="relative w-full h-[400px] mt-4">
+
+        
+       {/* 🔽 DROPDOWN TAHUN (CHART) */}
+<div className="absolute top-0 right-0 z-10">
+  <select
+    value={selectedYear}
+    onChange={(e) => {
+      setSelectedYear(e.target.value);
+      setSelectedMonthFromChart(null);
+    }}
+    className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm
+               bg-white shadow-md
+               hover:border-slate-400
+               focus:ring-2 focus:ring-blue-300 focus:outline-none"
+  >
+    <option value="">Semua Tahun</option>
+    {yearOptions.map((year) => (
+      <option key={year} value={year}>
+        {year}
+      </option>
+    ))}
+  </select>
+</div>
+
+
+        
+        
           {selectedPIC.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-<BarChart data={chartData} barSize={26}>
+<BarChart
+  data={chartData}
+  barSize={26}
+  onClick={(data: any) => {
+    const clickedBulan = data?.activeLabel;
+
+    if (clickedBulan) {
+      // 🔥 BULAN → state yang memang ADA
+      setSelectedMonthFromChart(clickedBulan.toUpperCase());
+
+      // 🔥 TAHUN → pakai state global
+      setSelectedYear(
+        selectedYear || new Date().getFullYear().toString()
+      );
+    }
+  }}
+>
+
+
+
   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
   <XAxis dataKey="bulan" />
   <YAxis allowDecimals={false} />
