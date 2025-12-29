@@ -124,7 +124,7 @@ type AuditData = {
   report_description?: string | null;
   uploaded_by?: string | null;
   no_laporan?: string | null;
-  jenisData?: "visit" | "non-visit" | "";
+  jenisData?: "visit" | "non-visit" | "rekon" | "";
   company?: string;
   anakCabang?: string; 
   approved_by?: string[]; // ✅ tambahkan ini
@@ -349,6 +349,66 @@ function splitRealisasi(value?: string): SplitRealisasiResult {
     akhir: parts[1] || "",
   };
 }
+
+
+async function generateNoLaporanRekon(
+  tahun: string,
+  bulan: string
+) {
+  // ===============================
+  //     VALIDASI TAHUN
+  // ===============================
+  if (!tahun || tahun.length !== 4) {
+    throw new Error("Tahun tidak valid");
+  }
+
+  const shortYear = tahun.slice(2); // 2025 → 25
+
+  // ===============================
+  //     VALIDASI BULAN
+  // ===============================
+  const monthIndex = monthOrder.findIndex(
+    (b) => b.toLowerCase() === bulan.toLowerCase()
+  );
+
+  if (monthIndex === -1) {
+    throw new Error("Bulan tidak valid");
+  }
+
+  const monthNum = String(monthIndex + 1).padStart(2, "0"); // 01–12
+
+  // ===============================
+  //     AMBIL DATA EXISTING REKON
+  // ===============================
+  const { data, error } = await supabase
+    .from("audit_full")
+    .select("no_laporan")
+    // ❗ JANGAN filter jenis_data (kolom tidak ada)
+    .ilike("no_laporan", `RN/${shortYear}/${monthNum}/%`);
+
+  if (error) {
+    console.error("❌ Fetch Rekon error:", error.message);
+    throw error;
+  }
+
+  // ===============================
+  //     HITUNG NOMOR URUT
+  // ===============================
+  const numbers = (data || [])
+    .map((d) => Number(d.no_laporan?.split("/")?.[3]))
+    .filter((n) => !isNaN(n));
+
+  const nextNumber = String(
+    (numbers.length ? Math.max(...numbers) : 0) + 1
+  ).padStart(3, "0"); // 🔥 XXX (001, 002, ...)
+
+  // ===============================
+  //     HASIL FINAL
+  // ===============================
+  return `RN/${shortYear}/${monthNum}/${nextNumber}`;
+}
+
+
 
 
 export default function AuditApp() {
@@ -1902,13 +1962,10 @@ const handleSubmitAll = async (e: React.FormEvent) => {
       }
 
       // ===============================
-      //     TAHUN LAPORAN (FIX UTAMA)
+      //     BULAN & TAHUN (FIX GLOBAL)
       // ===============================
-      const year = form.tahun.slice(2); // ✅ contoh: 2025 → 25
+      const yearShort = form.tahun.slice(2);
 
-      // ===============================
-      //     GENERATE NOMOR LAPORAN
-      // ===============================
       const monthIndex = monthOrder.findIndex(
         (b) => b.toLowerCase() === form.bulan.toLowerCase()
       );
@@ -1920,29 +1977,62 @@ const handleSubmitAll = async (e: React.FormEvent) => {
 
       const monthNum = String(monthIndex + 1).padStart(2, "0");
 
-      const prefix = form.jenisData === "visit" ? "SOV" : "SONV";
+      // ===============================
+      //     GENERATE NO LAPORAN (FINAL)
+      // ===============================
+    let noLaporan = "";
 
-      const { data: latestData, error: fetchError } = await supabase
-        .from("audit_full")
-        .select("no_laporan")
-        .ilike("no_laporan", `${prefix}/${year}/${monthNum}/%`);
+if (form.jenisData === "rekon") {
+  const { data, error } = await supabase
+    .from("audit_full")
+    .select("no_laporan")
+    .eq("jenisData", "rekon") // ✅ SESUAI DB
+    .ilike("no_laporan", `RN/${yearShort}/${monthNum}/%`);
 
-      if (fetchError) {
-        console.error("❌ Fetch nomor laporan error:", fetchError.message);
-        toast.error("Gagal ambil nomor laporan terakhir");
-        continue;
-      }
+  if (error) {
+    console.error("❌ Rekon fetch error:", error.message);
+    toast.error("Gagal generate nomor Rekon");
+    continue;
+  }
 
-      const existingNumbers = (latestData || [])
-        .map((d) => d.no_laporan?.split("/")?.[3])
-        .filter((n) => n && !isNaN(Number(n)))
-        .map(Number);
+  const numbers = (data || [])
+    .map((d) => Number(d.no_laporan?.split("/")?.[3]))
+    .filter((n) => !isNaN(n));
 
-      const nextNumber = String(
-        (existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0) + 1
-      ).padStart(3, "0");
+  const next = String(
+    (numbers.length ? Math.max(...numbers) : 0) + 1
+  ).padStart(3, "0");
 
-      const noLaporan = `${prefix}/${year}/${monthNum}/${nextNumber}`;
+  noLaporan = `RN/${yearShort}/${monthNum}/${next}`;
+
+
+
+} else {
+  // 🔥 VISIT / NON VISIT
+  const prefix = form.jenisData === "visit" ? "SOV" : "SONV";
+
+  const { data, error } = await supabase
+    .from("audit_full")
+    .select("no_laporan")
+    .ilike("no_laporan", `${prefix}/${yearShort}/${monthNum}/%`);
+
+  if (error) {
+    console.error("❌ Fetch error:", error.message);
+    toast.error("Gagal generate nomor laporan");
+    continue;
+  }
+
+  const numbers = (data || [])
+    .map((d) => Number(d.no_laporan?.split("/")?.[3]))
+    .filter((n) => !isNaN(n));
+
+  const next = String(
+    (numbers.length ? Math.max(...numbers) : 0) + 1
+  ).padStart(3, "0");
+
+  noLaporan = `${prefix}/${yearShort}/${monthNum}/${next}`;
+}
+
 
       // ===============================
       //        FORMAT TANGGAL
@@ -1982,7 +2072,7 @@ const handleSubmitAll = async (e: React.FormEvent) => {
       const finalTeam = allPIC.length === 1 ? allPIC : [];
 
       // ===============================
-      //         SUSUN PAYLOAD
+      //         PAYLOAD (FINAL)
       // ===============================
       const payload: any = {
         no_laporan: noLaporan,
@@ -2006,17 +2096,16 @@ const handleSubmitAll = async (e: React.FormEvent) => {
         description: form.description,
         status: "Belum",
         company: form.company,
-        jenisData: form.jenisData,
+        jenisData: form.jenisData, // ⬅️ PENTING (snake_case)
         created_at: new Date().toISOString(),
       };
 
-      // 🔥 Anak cabang optional
       if (form.anakCabang?.trim()) {
         payload.anak_cabang = form.anakCabang;
       }
 
       // ===============================
-      //      SIMPAN KE DATABASE
+      //        INSERT DB
       // ===============================
       const { data, error } = await supabase
         .from("audit_full")
@@ -2033,7 +2122,7 @@ const handleSubmitAll = async (e: React.FormEvent) => {
       setDataList((prev) => [newReport, ...prev]);
 
       // ===============================
-      //      APPROVAL AUTO GENERATE
+      //        APPROVAL
       // ===============================
       const approvers = ["Aprilia", "NOVIE", "Andreas"];
       const approvalData = approvers.map((name, idx) => ({
@@ -2051,7 +2140,7 @@ const handleSubmitAll = async (e: React.FormEvent) => {
     toast.success("✅ Semua data berhasil disimpan!", { id: loadingToast });
 
     // ===============================
-    //    RESET FORM
+    //        RESET FORM
     // ===============================
     setFormList([
       {
@@ -2075,9 +2164,8 @@ const handleSubmitAll = async (e: React.FormEvent) => {
         status: "Belum",
       },
     ]);
-
-  } catch (err: any) {
-    console.error("❌ Error submit:", err);
+  } catch (err) {
+    console.error("❌ Fatal submit error:", err);
     toast.error("Gagal menyimpan data!", { id: loadingToast });
   }
 };
@@ -5120,19 +5208,18 @@ onClick={(data: any) => {
             <label className="block text-sm font-semibold text-slate-800 mb-1">
               Jenis Data<span className="text-red-500">*</span>
             </label>
-            <select
-              value={formData.jenisData}
-              onChange={(e) => {
-                const updated = [...formList];
-                updated[index].jenisData = e.target.value as "visit" | "non-visit" | "";
-                setFormList(updated);
-              }}
-              className="border border-slate-300 rounded-lg p-2 w-full focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition"
-            >
-              <option value="">-- Pilih Jenis --</option>
-              <option value="visit">Visit</option>
-              <option value="non-visit">Non Visit</option>
-            </select>
+           <select
+  name="jenisData"
+  value={formData.jenisData}
+  onChange={(e) => handleChange(e, index)}
+  className="border rounded p-2 w-full"
+>
+  <option value="">-- Pilih Jenis Data --</option>
+  <option value="visit">Visit</option>
+  <option value="non-visit">Non Visit</option>
+  <option value="rekon">Rekon Data</option>
+</select>
+
           </div>
         </div>
         </details>
