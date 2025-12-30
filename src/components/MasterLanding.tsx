@@ -36,6 +36,13 @@ const MASTER_MENU = [
     icon: Users,
   },
   {
+  label: "Warehouse",
+  desc: "Kelola data warehouse",
+  href: "/master/warehouse",
+  icon: Warehouse,
+},
+
+  {
     label: "Cabang",
     desc: "Kelola struktur & hirarki cabang",
     href: "/master/cabang",
