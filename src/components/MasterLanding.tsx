@@ -8,6 +8,9 @@ import {
   GitBranch,
   ArrowRight,
   Store,
+   Wrench,
+  MapPin,
+  MapPinOff,
 } from "lucide-react";
 
 const MASTER_MENU = [
@@ -35,19 +38,38 @@ const MASTER_MENU = [
     href: "/master/users",
     icon: Users,
   },
-  {
-  label: "Warehouse",
-  desc: "Kelola data warehouse",
-  href: "/master/warehouse",
-  icon: Warehouse,
+{
+  label: "Tradisional",
+  desc: "Kelola data outlet tradisional",
+  href: "/master/tradisional",
+  icon: Store,
 },
+{
+  label: "Service Center",
+  desc: "Kelola data service center",
+  href: "/master/service-center",
+  icon: Wrench,
+},
+{
+  label: "Jabodetabek",
+  desc: "Kelola area dalam Jabodetabek",
+  href: "/master/jabodetabek",
+  icon: MapPin,
+},
+{
+  label: "Luar Jabodetabek",
+  desc: "Kelola area di luar Jabodetabek",
+  href: "/master/luar-jabodetabek",
+  icon: MapPinOff,
+},
+
 
   {
     label: "Cabang",
     desc: "Kelola struktur & hirarki cabang",
     href: "/master/cabang",
     icon: GitBranch,
-    highlight: true,
+    
   },
 ];
 
