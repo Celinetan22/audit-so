@@ -4,6 +4,10 @@ import { supabase } from "@/lib/supabaseClient";
 import toast from "react-hot-toast";
 import { motion } from "framer-motion";
 import { Plus, Trash2, Edit2, Check, X, Search } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
+
+
 
 type Modern = {
   id: number;
@@ -69,6 +73,9 @@ export default function KelolaModern() {
     m.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+const router = useRouter();
+
+
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-200 p-6">
       <motion.div
@@ -78,6 +85,16 @@ export default function KelolaModern() {
         className="w-full max-w-6xl bg-white rounded-3xl shadow-2xl p-10 border border-gray-200"
       >
         {/* Header */}
+        
+        <button
+  onClick={() => router.push("/master")}
+
+  className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition mb-6"
+>
+  <ArrowLeft size={20} />
+  <span className="font-medium">Kembali</span>
+</button>
+        
         <motion.h1
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}

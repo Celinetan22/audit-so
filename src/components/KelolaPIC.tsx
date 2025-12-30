@@ -3,6 +3,10 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { motion } from "framer-motion";
 import { Trash2, Plus } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
+
+
 
 export default function KelolaPIC() {
   const [namaPIC, setNamaPIC] = useState("");
@@ -29,8 +33,22 @@ export default function KelolaPIC() {
     setListPIC(listPIC.filter((pic) => pic !== nama));
   };
 
+const router = useRouter();
+
+
+
   return (
     <div className="flex justify-center items-center w-full h-screen bg-gray-50">
+     <button
+  onClick={() => router.push("/master")}
+
+  className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition mb-4"
+>
+  <ArrowLeft size={18} />
+  Kembali
+</button>
+
+     
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

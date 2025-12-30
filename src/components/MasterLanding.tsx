@@ -7,6 +7,7 @@ import {
   UserCircle,
   GitBranch,
   ArrowRight,
+  Store,
 } from "lucide-react";
 
 const MASTER_MENU = [
@@ -21,6 +22,12 @@ const MASTER_MENU = [
     desc: "Kelola data warehouse",
     href: "/master/warehouse",
     icon: Warehouse,
+  },
+    {
+    label: "Modern",
+    desc: "Kelola data modern",
+    href: "/master/modern", // ⬅️ PENTING
+    icon: Store,
   },
   {
     label: "Users",

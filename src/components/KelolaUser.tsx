@@ -2,6 +2,8 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import toast from "react-hot-toast";
+import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function KelolaUser() {
   const [users, setUsers] = useState<any[]>([]);
@@ -92,10 +94,27 @@ export default function KelolaUser() {
     setEditData({ username: "", password: "", role: "user" });
   };
 
+const router = useRouter();
+
+
+
   // === UI ===
   return (
     <div className="w-full min-h-screen bg-gray-50 flex items-center justify-center p-6">
       <div className="w-full max-w-5xl bg-white rounded-2xl shadow-lg p-10 border border-gray-200">
+       
+       <button
+  onClick={() => router.push("/master")}
+
+  className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition mb-6"
+>
+  <ArrowLeft size={18} />
+  Kembali
+</button>
+
+
+
+       
         <h2 className="text-2xl font-bold text-gray-800 text-center mb-8 tracking-tight">
           Kelola User
         </h2>
