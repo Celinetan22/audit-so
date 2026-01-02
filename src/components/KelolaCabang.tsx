@@ -51,44 +51,61 @@ export default function KelolaCabang() {
     fetchCabangs();
   }, []);
 
-  const handleAddParent = async () => {
-    if (!newParentName.trim()) return;
-    const { error } = await supabase
-      .from("cabangs")
-      .insert([{ name: newParentName, parent_id: null }]);
-    if (!error) {
-      toast.success("Cabang utama ditambahkan");
-      setNewParentName("");
-      fetchCabangs();
-    }
-  };
+const handleAddParent = async () => {
+  if (!newParentName.trim()) return;
+
+  const nameUpper = newParentName.trim().toUpperCase();
+
+  const { error } = await supabase
+    .from("cabangs")
+    .insert([{ name: nameUpper, parent_id: null }]);
+
+  if (!error) {
+    toast.success("Cabang utama ditambahkan");
+    setNewParentName("");
+    fetchCabangs();
+  }
+};
 
   const handleAddChild = async (parentId: number) => {
-    if (!childName.trim()) return;
-    const { error } = await supabase
-      .from("cabangs")
-      .insert([{ name: childName, parent_id: parentId }]);
-    if (!error) {
-      toast.success("Anak cabang ditambahkan");
-      setChildName("");
-      setShowChildForm(null);
-      fetchCabangs();
-    }
-  };
+  if (!childName.trim()) return;
+
+  const nameUpper = childName.trim().toUpperCase();
+
+  const { error } = await supabase
+    .from("cabangs")
+    .insert([{ name: nameUpper, parent_id: parentId }]);
+
+  if (!error) {
+    toast.success("Anak cabang ditambahkan");
+    setChildName("");
+    setShowChildForm(null);
+    fetchCabangs();
+  }
+};
+
 
   const handleEditCabang = async (id: number) => {
-    if (!editName.trim()) {
-      toast.error("Nama tidak boleh kosong");
-      return;
-    }
-    const { error } = await supabase.from("cabangs").update({ name: editName }).eq("id", id);
-    if (!error) {
-      toast.success("Nama cabang diperbarui");
-      setEditId(null);
-      setEditName("");
-      fetchCabangs();
-    }
-  };
+  if (!editName.trim()) {
+    toast.error("Nama tidak boleh kosong");
+    return;
+  }
+
+  const nameUpper = editName.trim().toUpperCase();
+
+  const { error } = await supabase
+    .from("cabangs")
+    .update({ name: nameUpper })
+    .eq("id", id);
+
+  if (!error) {
+    toast.success("Nama cabang diperbarui");
+    setEditId(null);
+    setEditName("");
+    fetchCabangs();
+  }
+};
+
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -194,33 +211,47 @@ export default function KelolaCabang() {
 
           {showChildForm === c.id && isParentLevel && (
             <div className="ml-6 mt-2 bg-white border rounded-lg p-3 shadow-sm">
-              <label className="block text-sm font-medium mb-1">
-                Nama Anak Cabang
-              </label>
-              <input
-                value={childName}
-                onChange={(e) => setChildName(e.target.value)}
-                placeholder="Masukkan nama anak cabang..."
-                className="w-full border rounded-lg p-2 mb-2 focus:ring-2 focus:ring-blue-500"
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleAddChild(c.id)}
-                  className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
-                >
-                  Simpan
-                </button>
-                <button
-                  onClick={() => {
-                    setShowChildForm(null);
-                    setChildName("");
-                  }}
-                  className="bg-gray-300 px-3 py-1 rounded hover:bg-gray-400"
-                >
-                  Batal
-                </button>
+
+<form
+  onSubmit={(e) => {
+    e.preventDefault();
+    handleAddChild(c.id);
+  }}
+>
+  <label className="block text-sm font-medium mb-1">
+    Nama Anak Cabang
+  </label>
+
+  <input
+    value={childName}
+    onChange={(e) => setChildName(e.target.value)}
+    placeholder="Masukkan nama anak cabang..."
+    className="w-full border rounded-lg p-2 mb-2 focus:ring-2 focus:ring-blue-500 uppercase"
+    autoFocus
+  />
+
+  <div className="flex gap-2">
+    <button
+      type="submit"
+      className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+    >
+      Simpan
+    </button>
+    <button
+      type="button"
+      onClick={() => {
+        setShowChildForm(null);
+        setChildName("");
+      }}
+      className="bg-gray-300 px-3 py-1 rounded hover:bg-gray-400"
+    >
+      Batal
+    </button>
+  </div>
+</form>
+
               </div>
-            </div>
+          
           )}
 
           {c.children && c.children.length > 0 && expanded.includes(c.id) && (
@@ -242,18 +273,28 @@ export default function KelolaCabang() {
           <label className="block text-sm font-medium text-gray-700">
             Cabang Utama
           </label>
-          <input
-            value={newParentName}
-            onChange={(e) => setNewParentName(e.target.value)}
-            placeholder="Masukkan cabang utama..."
-            className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500"
-          />
-          <button
-            onClick={handleAddParent}
-            className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
-          >
-            Simpan Cabang Utama
-          </button>
+        <form
+  onSubmit={(e) => {
+    e.preventDefault();
+    handleAddParent();
+  }}
+  className="space-y-2"
+>
+  <input
+    value={newParentName}
+    onChange={(e) => setNewParentName(e.target.value)}
+    placeholder="Masukkan cabang utama..."
+    className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 uppercase"
+  />
+
+  <button
+    type="submit"
+    className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
+  >
+    Simpan Cabang Utama
+  </button>
+</form>
+
         </div>
 
     
