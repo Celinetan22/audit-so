@@ -353,15 +353,61 @@ type SplitRealisasiResult = {
   akhir: string;
 };
 
-function splitRealisasi(value?: string): SplitRealisasiResult {
+const monthMap: Record<string, string> = {
+  Jan: "01",
+  Feb: "02",
+  Mar: "03",
+  Apr: "04",
+  May: "05",
+  Jun: "06",
+  Jul: "07",
+  Aug: "08",
+  Sep: "09",
+  Oct: "10",
+  Nov: "11",
+  Dec: "12",
+};
+
+const toISODate = (str: string) => {
+  if (!str) return "";
+
+  // sudah ISO
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+
+  // dd/mm/yyyy
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) {
+    const [d, m, y] = str.split("/");
+    return `${y}-${m}-${d}`;
+  }
+
+  // dd Mon yyyy (01 Jan 2026)
+  const match = str.match(/^(\d{2})\s([A-Za-z]{3})\s(\d{4})$/);
+  if (match) {
+    const [, d, mon, y] = match;
+    return `${y}-${monthMap[mon]}-${d}`;
+  }
+
+  return "";
+};
+
+function splitRealisasi(value?: string) {
   if (!value) return { awal: "", akhir: "" };
 
   const parts = value.split(" - ");
+
+  if (parts.length === 2) {
+    return {
+      awal: toISODate(parts[0].trim()),
+      akhir: toISODate(parts[1].trim()),
+    };
+  }
+
   return {
-    awal: parts[0] || "",
-    akhir: parts[1] || "",
+    awal: toISODate(value.trim()),
+    akhir: "",
   };
 }
+
 
 
 async function generateNoLaporanRekon(
@@ -1349,13 +1395,22 @@ useEffect(() => {
 
     if (data) {
       // 🔹 Normalisasi nama kolom supaya konsisten di frontend
-      const normalized = data.map((item: any) => ({
-        ...item,
-        luarJabodetabek: item.luar_jabodetabek ?? item.luarJabodetabek ?? "",
-        anakCabang: item.anak_cabang ?? item.anakCabang ?? "",
-        noLaporan: item.no_laporan ?? item.noLaporan ?? "",
-        jenisData: item.jenis_data ?? item.jenisdata ?? "",
-      }));
+const normalized = data.map((item: any) => ({
+  ...item,
+
+  // existing
+  luarJabodetabek: item.luar_jabodetabek ?? "",
+  anakCabang: item.anak_cabang ?? "",
+  noLaporan: item.no_laporan ?? "",
+  jenisData: item.jenis_data ?? "",
+
+  // 🔥 TAMBAHKAN INI
+  tanggal_realisasi_full:
+    item.tanggal_realisasi_full ??
+    item.tanggal_realisasi ??
+    null,
+}));
+
 
       setDataList(normalized);
 
@@ -2791,53 +2846,34 @@ const handleSaveEditModal = useCallback(async (data: any) => {
   // ============================
   // Helper Format Tanggal
   // ============================
-const toDDMMYYYY = (str: string) => {
-  if (!str) return "";
-
-  // kalau sudah format teks → BIARKAN
-  if (/[a-zA-Z]/.test(str)) return str;
-
-  // YYYY-MM-DD
-  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
-    const [y, m, d] = str.split("-");
-    return `${d}/${m}/${y}`;
-  }
-
-  return str;
-};
-
 
 const { awal: parsedAwal, akhir: parsedAkhir } =
   splitRealisasi(data.realisasi);
 
 
-  const formatRange = (awal: string, akhir: string) => {
-    if (awal && akhir) return `${toDDMMYYYY(awal)} - ${toDDMMYYYY(akhir)}`;
-    if (awal) return toDDMMYYYY(awal);
-    if (akhir) return toDDMMYYYY(akhir);
-    return "";
-  };
+
 
   // ============================
   // Format Estimasi
   // ============================
-  const finalEstimasiDB = formatRange(
-    data.tanggalAwal || "",
-    data.tanggalAkhir || ""
-  ) || oldData.tanggal_estimasi_full;
+const finalEstimasiDB =
+  data.tanggalAwal && data.tanggalAkhir
+    ? `${data.tanggalAwal} - ${data.tanggalAkhir}`
+    : data.tanggalAwal || oldData.tanggal_estimasi_full || "";
 
-  const finalEstimasiUI = finalEstimasiDB;
+const finalEstimasiUI = finalEstimasiDB;
+
 
   // ============================
   // Format Realisasi
   // ============================
 const finalRealisasiDB =
-  formatRange(parsedAwal, parsedAkhir) ||
-  oldData.tanggal_realisasi_full ||
-  "";
-
+  parsedAwal && parsedAkhir
+    ? `${parsedAwal} - ${parsedAkhir}`
+    : parsedAwal || oldData.tanggal_realisasi_full || "";
 
 const finalRealisasiUI = finalRealisasiDB;
+
 
 
   // ============================
@@ -6141,7 +6177,6 @@ paginatedUpdatePlanData.map((d, i) => (
           <div className="flex gap-2 justify-center">
             <button
 onClick={() => {
-  // Convert dd/mm/yyyy → yyyy-mm-dd
   const toISO = (str: string) => {
     if (!str || !str.includes("/")) return "";
     const [d, m, y] = str.split("/");
@@ -6149,53 +6184,32 @@ onClick={() => {
   };
 
   const parseRange = (str: string) => {
-    if (!str) return { start: "", end: "" };
+    if (!str) return "";
 
     const parts = str.split(" - ");
 
-    // kasus "dd/mm/yyyy - dd/mm/yyyy"
     if (parts.length === 2) {
-      return {
-        start: toISO(parts[0]),
-        end: toISO(parts[1]),
-      };
+      return `${toISO(parts[0])} - ${toISO(parts[1])}`;
     }
 
-    // kasus hanya satu tanggal
-    return { start: toISO(str), end: "" };
+    return toISO(str);
   };
-
-  // Ambil dari DB — urutan prioritas
-  const rawEstimasi =
-    d.tanggal_estimasi_full ||
-    d.tanggal ||
-    "";
 
   const rawRealisasi =
     d.tanggal_realisasi_full ||
     d.realisasi ||
     "";
 
-  const est = parseRange(rawEstimasi);
-  const real = parseRange(rawRealisasi);
-
-  // Set ke modal
   setEditingData({
     ...(d as any),
 
-    // ⬇⬇ ini yang muncul di date picker ⬇⬇
-    tanggalAwal: est.start,
-    tanggalAkhir: est.end,
-
-    realisasiAwal: real.start,
-    realisasiAkhir: real.end,
-
-    // untuk field textarea realisasi
-    realisasi: rawRealisasi,
+    // 🔥 SATU SUMBER KEBENARAN
+    realisasi: parseRange(rawRealisasi),
   } as any);
 
   setShowEditModal(true);
 }}
+
 
 
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border 
