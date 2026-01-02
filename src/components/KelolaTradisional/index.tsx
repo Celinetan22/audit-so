@@ -36,29 +36,41 @@ export default function KelolaTradisional() {
     fetchData();
   }, []);
 
-  const addData = async () => {
-    if (!newName.trim()) return toast.error("Nama wajib diisi");
-    const { error } = await supabase.from("tradisional").insert([{ name: newName }]);
-    if (!error) {
-      toast.success("Berhasil ditambahkan");
-      setNewName("");
-      fetchData();
-    }
-  };
+const addData = async () => {
+  if (!newName.trim()) return toast.error("Nama wajib diisi");
+
+  const formattedName = newName.trim().toUpperCase(); // ✅
+
+  const { error } = await supabase
+    .from("tradisional")
+    .insert([{ name: formattedName }]); // ✅ PAKAI YANG SUDAH BESAR
+
+  if (!error) {
+    toast.success("Berhasil ditambahkan");
+    setNewName("");
+    fetchData();
+  }
+};
+
 
   const saveEdit = async (id: number) => {
-    if (!editName.trim()) return toast.error("Nama wajib diisi");
-    const { error } = await supabase
-      .from("tradisional")
-      .update({ name: editName })
-      .eq("id", id);
+  if (!editName.trim()) return toast.error("Nama wajib diisi");
 
-    if (!error) {
-      toast.success("Berhasil diupdate");
-      setEditId(null);
-      fetchData();
-    }
-  };
+  const formattedName = editName.trim().toUpperCase(); // ✅
+
+  const { error } = await supabase
+    .from("tradisional")
+    .update({ name: formattedName }) // ✅ PAKAI YANG SUDAH BESAR
+    .eq("id", id);
+
+  if (!error) {
+    toast.success("Berhasil diupdate");
+    setEditId(null);
+    setEditName("");
+    fetchData();
+  }
+};
+
 
   const deleteData = async () => {
     if (!deleteId) return;

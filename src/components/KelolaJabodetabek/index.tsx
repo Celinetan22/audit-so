@@ -36,29 +36,40 @@ export default function KelolaTradisional() {
     fetchData();
   }, []);
 
-  const addData = async () => {
-    if (!newName.trim()) return toast.error("Nama wajib diisi");
-    const { error } = await supabase.from("tradisional").insert([{ name: newName }]);
-    if (!error) {
-      toast.success("Berhasil ditambahkan");
-      setNewName("");
-      fetchData();
-    }
-  };
+const addData = async () => {
+  if (!newName.trim()) return toast.error("Nama wajib diisi");
 
-  const saveEdit = async (id: number) => {
-    if (!editName.trim()) return toast.error("Nama wajib diisi");
-    const { error } = await supabase
-      .from("jabodetabek")
-      .update({ name: editName })
-      .eq("id", id);
+  const formattedName = newName.trim().toUpperCase(); // 👈 AUTO BESAR
 
-    if (!error) {
-      toast.success("Berhasil diupdate");
-      setEditId(null);
-      fetchData();
-    }
-  };
+  const { error } = await supabase
+    .from("jabodetabek")
+    .insert([{ name: formattedName }]);
+
+  if (!error) {
+    toast.success("Berhasil ditambahkan");
+    setNewName("");
+    fetchData();
+  }
+};
+
+
+const saveEdit = async (id: number) => {
+  if (!editName.trim()) return toast.error("Nama wajib diisi");
+
+  const formattedName = editName.trim().toUpperCase(); // 👈 AUTO BESAR
+
+  const { error } = await supabase
+    .from("jabodetabek")
+    .update({ name: formattedName })
+    .eq("id", id);
+
+  if (!error) {
+    toast.success("Berhasil diupdate");
+    setEditId(null);
+    fetchData();
+  }
+};
+
 
   const deleteData = async () => {
     if (!deleteId) return;

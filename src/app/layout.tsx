@@ -3,7 +3,8 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 
-// === Font utama ===
+
+
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
   variable: "--font-plus-jakarta",
@@ -21,26 +22,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="id" suppressHydrationWarning>
-      <body
-        className={`${plusJakarta.variable} antialiased bg-slate-50 text-slate-800`}
-        suppressHydrationWarning
-      >
-        {/* Wrapper untuk memaksa React hydrate hanya di dalam area ini */}
-        <div id="__app" suppressHydrationWarning>
-          {children}
-        </div>
+    <html lang="id">
+<body className={`${plusJakarta.variable} antialiased bg-slate-50 text-slate-800`}>
+  {children}
+  <Toaster position="top-center" />
+</body>
 
-        {/* Global Toast */}
-        <Toaster
-          position="top-center"
-          toastOptions={{
-            className: "rounded-xl shadow-md font-medium text-gray-800",
-            success: { iconTheme: { primary: "#10b981", secondary: "#fff" } },
-            error: { iconTheme: { primary: "#ef4444", secondary: "#fff" } },
-          }}
-        />
-      </body>
     </html>
   );
 }

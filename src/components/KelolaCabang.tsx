@@ -107,42 +107,7 @@ export default function KelolaCabang() {
     );
   };
 
-  const handleImportCabang = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (evt) => {
-      try {
-        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: "array" });
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-
-        const mappedData = (jsonData as any[])
-          .map((row) => ({
-            name: row["NAMA CABANG"] || row["Cabang"] || "",
-            parent_id: null,
-          }))
-          .filter((d) => d.name !== "");
-
-        if (mappedData.length === 0) {
-          toast.error("Tidak ada data cabang valid di file");
-          return;
-        }
-
-        const { error } = await supabase.from("cabangs").insert(mappedData);
-        if (error) throw error;
-
-        toast.success("Cabang berhasil diimport");
-        fetchCabangs();
-      } catch (err: any) {
-        console.error("Import error:", err.message);
-        toast.error("Gagal import cabang: " + err.message);
-      }
-    };
-    reader.readAsArrayBuffer(file);
-  };
+  
 
   const renderCabangs = (list: Cabang[], isParentLevel = true) => (
     <ul className="ml-6 border-l pl-4 border-gray-200">
@@ -291,17 +256,7 @@ export default function KelolaCabang() {
           </button>
         </div>
 
-        <div className="mb-8">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Import Cabang dari Excel/CSV
-          </label>
-          <input
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            onChange={handleImportCabang}
-            className="border p-2 rounded"
-          />
-        </div>
+    
 
         <div>
           <h3 className="text-lg font-semibold mb-2">Daftar Cabang</h3>

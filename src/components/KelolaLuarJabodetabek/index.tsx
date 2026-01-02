@@ -38,7 +38,10 @@ export default function KelolaTradisional() {
 
   const addData = async () => {
     if (!newName.trim()) return toast.error("Nama wajib diisi");
-    const { error } = await supabase.from("tradisional").insert([{ name: newName }]);
+   
+   const formattedName = newName.trim().toUpperCase(); // 👈 AUTO 
+   
+    const { error } = await supabase.from("luar_jabodetabek").insert([{ name: formattedName }]);
     if (!error) {
       toast.success("Berhasil ditambahkan");
       setNewName("");
@@ -46,19 +49,24 @@ export default function KelolaTradisional() {
     }
   };
 
-  const saveEdit = async (id: number) => {
-    if (!editName.trim()) return toast.error("Nama wajib diisi");
-    const { error } = await supabase
-      .from("luar_jabodetabek")
-      .update({ name: editName })
-      .eq("id", id);
+const saveEdit = async (id: number) => {
+  if (!editName.trim()) return toast.error("Nama wajib diisi");
 
-    if (!error) {
-      toast.success("Berhasil diupdate");
-      setEditId(null);
-      fetchData();
-    }
-  };
+  const formattedName = editName.trim().toUpperCase(); // ✅ BENAR
+
+  const { error } = await supabase
+    .from("luar_jabodetabek")
+    .update({ name: formattedName })
+    .eq("id", id);
+
+  if (!error) {
+    toast.success("Berhasil diupdate");
+    setEditId(null);
+    setEditName(""); // optional tapi rapi
+    fetchData();
+  }
+};
+
 
   const deleteData = async () => {
     if (!deleteId) return;
@@ -93,7 +101,7 @@ export default function KelolaTradisional() {
         <input
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
-          placeholder="Nama tradisional..."
+          placeholder="Nama Luar Jabodetabek"
           className="border rounded px-3 py-2"
         />
         <button onClick={addData} className="bg-black text-white px-4 rounded">

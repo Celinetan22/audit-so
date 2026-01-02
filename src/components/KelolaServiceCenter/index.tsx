@@ -10,7 +10,7 @@ type Item = {
   name: string;
 };
 
-export default function KelolaTradisional() {
+export default function KelolaService() {
   const [list, setList] = useState<Item[]>([]);
   const [newName, setNewName] = useState("");
   const [editId, setEditId] = useState<number | null>(null);
@@ -38,7 +38,7 @@ export default function KelolaTradisional() {
 
   const addData = async () => {
     if (!newName.trim()) return toast.error("Nama wajib diisi");
-    const { error } = await supabase.from("tradisional").insert([{ name: newName }]);
+    const { error } = await supabase.from("service_center").insert([{ name: newName }]);
     if (!error) {
       toast.success("Berhasil ditambahkan");
       setNewName("");
@@ -93,7 +93,7 @@ export default function KelolaTradisional() {
         <input
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
-          placeholder="Nama tradisional..."
+          placeholder="Nama SC..."
           className="border rounded px-3 py-2"
         />
         <button onClick={addData} className="bg-black text-white px-4 rounded">
