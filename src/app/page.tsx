@@ -181,6 +181,19 @@ const kategoriHeaders = [
   { key: "whz", label: "WH-Z" },
 ];
 
+const AREA_CHANNEL_GROUPS = {
+  cabang: ["cabang", "anakCabang"],
+  modern: ["modern"],
+  jabodetabek: ["jabodetabek"],
+  luarJabodetabek: ["luarJabodetabek"],
+  tradisional: ["tradisional"],
+  warehouse: ["warehouse"],
+  whz: ["whz"],
+};
+
+
+
+
 function getMonthNumber(monthName: string): number {
   const monthMap: Record<string, number> = {
     JANUARI: 1, FEBRUARI: 2, FEBRUARY: 2,
@@ -686,6 +699,17 @@ const pieDataKategori = [
 ];
 
 
+
+const isAreaChannelDisabled = (
+  formData: any,
+  currentGroup: keyof typeof AREA_CHANNEL_GROUPS
+) => {
+  return Object.entries(AREA_CHANNEL_GROUPS).some(
+    ([group, fields]) =>
+      group !== currentGroup &&
+      fields.some((f) => formData[f]?.toString().trim() !== "")
+  );
+};
 
 
 
@@ -5133,61 +5157,7 @@ onClick={(data: any) => {
             />
           </div>
 
-          {/* Cabang & Anak Cabang */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Cabang
-              </label>
-              <select
-                value={formData.cabang}
-                onChange={(e) => {
-                  const updated = [...formList];
-                  updated[index].cabang = e.target.value;
-                  updated[index].anakCabang = "";
-                  setFormList(updated);
-                }}
-                className="border border-slate-300 rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition"
-              >
-                <option value="">-- Pilih Cabang --</option>
-                {cabangOptions
-                  .filter((c) => !c.parent_id)
-                  .map((cabang) => (
-                    <option key={cabang.id} value={cabang.name}>
-                      {cabang.name}
-                    </option>
-                  ))}
-              </select>
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Anak Cabang
-              </label>
-              <select
-                value={formData.anakCabang || ""}
-                onChange={(e) => {
-                  const updated = [...formList];
-                  updated[index].anakCabang = e.target.value;
-                  setFormList(updated);
-                }}
-                className="border border-slate-300 rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition"
-              >
-                <option value="">-- Pilih Anak Cabang --</option>
-                {cabangOptions
-                  .filter(
-                    (c) =>
-                      c.parent_id ===
-                      cabangOptions.find((p) => p.name === formData.cabang)?.id
-                  )
-                  .map((anak) => (
-                    <option key={anak.id} value={anak.name}>
-                      {anak.name}
-                    </option>
-                  ))}
-              </select>
-            </div>
-          </div>
 
 {/* === AREA / CHANNEL === */}
 <div className="mt-6">
@@ -5195,148 +5165,216 @@ onClick={(data: any) => {
     Area & Channel
   </h3>
 
-  {/* === BARIS 1 === */}
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-    {/* Modern */}
-    <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1">
-        Modern
-      </label>
-      <select
-        value={formData.modern || ""}
-        onChange={(e) => {
-          const updated = [...formList];
-          updated[index].modern = e.target.value;
-          setFormList(updated);
-        }}
-        className="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition"
-      >
-        <option value="">-- Pilih Modern --</option>
-        {modernOptions.map((m) => (
-          <option key={m.id} value={m.name}>
-            {m.name}
-          </option>
-        ))}
-      </select>
-    </div>
 
-    {/* Jabodetabek */}
-    <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1">
-        Jabodetabek
-      </label>
-      <select
-        value={formData.jabodetabek}
-        onChange={(e) => {
-          const updated = [...formList];
-          updated[index].jabodetabek = e.target.value;
-          setFormList(updated);
-        }}
-        className="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition"
-      >
-        <option value="">-- Pilih Jabodetabek --</option>
-        {jabodetabekOptions.map((j) => (
-          <option key={j.id} value={j.name}>
-            {j.name}
-          </option>
-        ))}
-      </select>
-    </div>
 
-    {/* Luar Jabodetabek */}
-    <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1">
-        Luar Jabodetabek
-      </label>
-      <select
-        value={formData.luarJabodetabek}
-        onChange={(e) => {
-          const updated = [...formList];
-          updated[index].luarJabodetabek = e.target.value;
-          setFormList(updated);
-        }}
-        className="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition"
-      >
-        <option value="">-- Pilih Luar Jabodetabek --</option>
-        {luarJaboOptions.map((l) => (
-          <option key={l.id} value={l.name}>
-            {l.name}
+<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+  {/* === Cabang & Anak Cabang (1 CARD) === */}
+{/* === Cabang & Anak Cabang === */}
+<div className="md:col-span-1">
+  <label className="block text-sm font-medium text-slate-700 mb-2">
+    Cabang
+  </label>
+
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+    {/* Cabang */}
+    <select
+      value={formData.cabang}
+      disabled={isAreaChannelDisabled(formData, "cabang")}
+      onChange={(e) => {
+        const updated = [...formList];
+        updated[index].cabang = e.target.value;
+        updated[index].anakCabang = "";
+        setFormList(updated);
+      }}
+      className="w-full border rounded-lg px-3 py-2 disabled:bg-slate-100 disabled:cursor-not-allowed"
+    >
+      <option value="">Cabang</option>
+      {cabangOptions
+        .filter((c) => !c.parent_id)
+        .map((c) => (
+          <option key={c.id} value={c.name}>
+            {c.name}
           </option>
         ))}
-      </select>
-    </div>
+    </select>
+
+    {/* Anak Cabang */}
+    <select
+      value={formData.anakCabang || ""}
+      disabled={isAreaChannelDisabled(formData, "cabang") || !formData.cabang}
+      onChange={(e) => {
+        const updated = [...formList];
+        updated[index].anakCabang = e.target.value;
+        setFormList(updated);
+      }}
+      className="w-full border rounded-lg px-3 py-2 disabled:bg-slate-100 disabled:cursor-not-allowed"
+    >
+      <option value="">Anak Cabang</option>
+      {cabangOptions
+        .filter(
+          (c) =>
+            c.parent_id ===
+            cabangOptions.find((p) => p.name === formData.cabang)?.id
+        )
+        .map((anak) => (
+          <option key={anak.id} value={anak.name}>
+            {anak.name}
+          </option>
+        ))}
+    </select>
+  </div>
+</div>
+
+
+  {/* === Modern === */}
+  <div>
+    <label className="block text-sm font-medium text-slate-700 mb-1">
+      Modern
+    </label>
+    <select
+      value={formData.modern || ""}
+      disabled={isAreaChannelDisabled(formData, "modern")}
+      onChange={(e) => {
+        const updated = [...formList];
+        updated[index].modern = e.target.value;
+        setFormList(updated);
+      }}
+      className="w-full border rounded-lg p-2 disabled:bg-slate-100"
+    >
+      <option value="">-- Pilih Modern --</option>
+      {modernOptions.map((m) => (
+        <option key={m.id} value={m.name}>
+          {m.name}
+        </option>
+      ))}
+    </select>
   </div>
 
-  {/* === BARIS 2 === */}
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-    {/* Tradisional */}
-    <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1">
-        Tradisional
-      </label>
-      <select
-        value={formData.tradisional}
-        onChange={(e) => {
-          const updated = [...formList];
-          updated[index].tradisional = e.target.value;
-          setFormList(updated);
-        }}
-        className="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition"
-      >
-        <option value="">-- Pilih Tradisional --</option>
-        {tradisionalOptions.map((t) => (
-          <option key={t.id} value={t.name}>
-            {t.name}
-          </option>
-        ))}
-      </select>
-    </div>
+  {/* === Jabodetabek === */}
+  <div>
+    <label className="block text-sm font-medium text-slate-700 mb-1">
+      Jabodetabek
+    </label>
+    <select
+      value={formData.jabodetabek}
+      disabled={isAreaChannelDisabled(formData, "jabodetabek")}
+      onChange={(e) => {
+        const updated = [...formList];
+        updated[index].jabodetabek = e.target.value;
+        setFormList(updated);
+      }}
+      className="w-full border rounded-lg p-2 disabled:bg-slate-100"
+    >
+      <option value="">-- Pilih Jabodetabek --</option>
+      {jabodetabekOptions.map((j) => (
+        <option key={j.id} value={j.name}>
+          {j.name}
+        </option>
+      ))}
+    </select>
+  </div>
+</div>
 
-    {/* Warehouse */}
-    <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1">
-        Warehouse
-      </label>
-      <select
-        value={formData.warehouse}
-        onChange={(e) => {
-          const updated = [...formList];
-          updated[index].warehouse = e.target.value;
-          setFormList(updated);
-        }}
-        className="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition"
-      >
-        <option value="">-- Pilih Warehouse --</option>
-        {warehouseOptions.map((w) => (
-          <option key={w.id} value={w.name}>
-            {w.name}
-          </option>
-        ))}
-      </select>
-    </div>
 
-    {/* Service Center */}
-    <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1">
-        WH - Z
-      </label>
-      <select
-        value={formData.whz}
-        onChange={(e) => {
-          const updated = [...formList];
-          updated[index].whz = e.target.value;
-          setFormList(updated);
-        }}
-        className="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition"
-      >
-        <option value="">-- Pilih WH - Z --</option>
-        {serviceCenterOptions.map((s) => (
-          <option key={s.id} value={s.name}>
-            {s.name}
-          </option>
-        ))}
-      </select>
-    </div>
+<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+
+  {/* Luar Jabodetabek */}
+  <div>
+    <label className="block text-sm font-medium text-slate-700 mb-1">
+      Luar Jabodetabek
+    </label>
+    <select
+      value={formData.luarJabodetabek}
+      disabled={isAreaChannelDisabled(formData, "luarJabodetabek")}
+      onChange={(e) => {
+        const updated = [...formList];
+        updated[index].luarJabodetabek = e.target.value;
+        setFormList(updated);
+      }}
+      className="w-full border rounded-lg p-2 disabled:bg-slate-100"
+    >
+      <option value="">-- Pilih Luar Jabodetabek --</option>
+      {luarJaboOptions.map((l) => (
+        <option key={l.id} value={l.name}>
+          {l.name}
+        </option>
+      ))}
+    </select>
+  </div>
+
+  {/* Tradisional */}
+  <div>
+    <label className="block text-sm font-medium text-slate-700 mb-1">
+      Tradisional
+    </label>
+    <select
+      value={formData.tradisional}
+      disabled={isAreaChannelDisabled(formData, "tradisional")}
+      onChange={(e) => {
+        const updated = [...formList];
+        updated[index].tradisional = e.target.value;
+        setFormList(updated);
+      }}
+      className="w-full border rounded-lg p-2 disabled:bg-slate-100"
+    >
+      <option value="">-- Pilih Tradisional --</option>
+      {tradisionalOptions.map((t) => (
+        <option key={t.id} value={t.name}>
+          {t.name}
+        </option>
+      ))}
+    </select>
+  </div>
+
+  {/* Warehouse */}
+  <div>
+    <label className="block text-sm font-medium text-slate-700 mb-1">
+      Warehouse
+    </label>
+    <select
+      value={formData.warehouse}
+      disabled={isAreaChannelDisabled(formData, "warehouse")}
+      onChange={(e) => {
+        const updated = [...formList];
+        updated[index].warehouse = e.target.value;
+        setFormList(updated);
+      }}
+      className="w-full border rounded-lg p-2 disabled:bg-slate-100"
+    >
+      <option value="">-- Pilih Warehouse --</option>
+      {warehouseOptions.map((w) => (
+        <option key={w.id} value={w.name}>
+          {w.name}
+        </option>
+      ))}
+    </select>
+  </div>
+
+
+<div className="mt-6 max-w-md">
+  <label className="block text-sm font-medium text-slate-700 mb-1">
+    WH - Z
+  </label>
+  <select
+    value={formData.whz}
+    disabled={isAreaChannelDisabled(formData, "whz")}
+    onChange={(e) => {
+      const updated = [...formList];
+      updated[index].whz = e.target.value;
+      setFormList(updated);
+    }}
+    className="w-full border rounded-lg p-2 disabled:bg-slate-100"
+  >
+    <option value="">-- Pilih WH - Z --</option>
+    {serviceCenterOptions.map((s) => (
+      <option key={s.id} value={s.name}>
+        {s.name}
+      </option>
+    ))}
+  </select>
+</div>
+
   </div>
 </div>
 
