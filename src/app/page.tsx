@@ -318,32 +318,39 @@ function formatDate(dateStr: string): string {
 
 
 
-function formatDateDisplay(dateStr: string): string {
-  if (!dateStr) return "-";
+function formatDateDisplay(value: string): string {
+  if (!value) return "-";
 
-  // 🔑 SUDAH FORMAT TEKS → LANGSUNG TAMPILKAN
-  if (/[a-zA-Z]/.test(dateStr)) {
-    return dateStr;
-  }
+  const bulan = [
+    "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
+    "Jul", "Agu", "Sep", "Okt", "Nov", "Des",
+  ];
 
-  const bulanNama: Record<string, string> = {
-    "01": "Jan", "02": "Feb", "03": "Mar", "04": "Apr",
-    "05": "Mei", "06": "Jun", "07": "Jul", "08": "Agu",
-    "09": "Sep", "10": "Okt", "11": "Nov", "12": "Des",
+  const normalize = (date: string) => {
+    // yyyy/mm/dd → yyyy-mm-dd
+    if (/^\d{4}\/\d{2}\/\d{2}$/.test(date)) {
+      return date.replaceAll("/", "-");
+    }
+    return date;
   };
 
-  if (dateStr.includes("-")) {
-    const [range, month, year] = dateStr.split("/");
-    if (!bulanNama[month]) return dateStr;
+  const formatISO = (iso: string) => {
+    iso = normalize(iso);
 
-    const [start, end] = range.split("-").map((x) => x.padStart(2, "0"));
-    return `${start} ${bulanNama[month]} ${year} - ${end} ${bulanNama[month]} ${year}`;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+
+    const [y, m, d] = iso.split("-");
+    return `${Number(d)} ${bulan[Number(m) - 1]} ${y}`;
+  };
+
+  // RANGE
+  if (value.includes(" - ")) {
+    const [a, b] = value.split(" - ");
+    return `${formatISO(a.trim())} - ${formatISO(b.trim())}`;
   }
 
-  const [day, month, year] = dateStr.split("/");
-  if (!bulanNama[month]) return dateStr;
-
-  return `${day.padStart(2, "0")} ${bulanNama[month]} ${year}`;
+  // SINGLE
+  return formatISO(value.trim());
 }
 
 
