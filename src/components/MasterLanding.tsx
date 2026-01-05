@@ -46,8 +46,8 @@ const MASTER_MENU = [
   icon: Store,
 },
 {
-  label: "Service Center",
-  desc: "Kelola data service center",
+  label: "WH - Z",
+  desc: "Kelola data WH - Z",
   href: "/master/service-center",
   icon: Wrench,
 },

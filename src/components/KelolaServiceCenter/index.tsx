@@ -85,7 +85,7 @@ export default function KelolaService() {
         <Link href="/master">
           <ArrowLeft className="cursor-pointer" />
         </Link>
-        <h1 className="text-2xl font-bold">Kelola Service Center</h1>
+        <h1 className="text-2xl font-bold">Kelola WH - Z</h1>
       </div>
 
       {/* Input */}
@@ -93,7 +93,7 @@ export default function KelolaService() {
         <input
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
-          placeholder="Nama SC..."
+          placeholder="Nama WH - Z..."
           className="border rounded px-3 py-2"
         />
         <button onClick={addData} className="bg-black text-white px-4 rounded">
