@@ -653,7 +653,19 @@ const findCabangByName = (name: string): Cabang | null => {
   return search(cabangs); // cabangs = hasil fetch tree dari KelolaCabang
 };
 
+const getYearFromTanggal = (val?: string | null) => {
+  if (!val) return null;
 
+  // ambil tanggal pertama jika range
+  const first = val.split(" - ")[0].trim();
+
+  // dd/mm/yyyy
+  const parts = first.split("/");
+  if (parts.length !== 3) return null;
+
+  const year = parts[2];
+  return /^\d{4}$/.test(year) ? year : null;
+};
 
 
 // === STATE UNTUK TAB & PENCARIAN ===
@@ -3064,7 +3076,7 @@ const exportToExcel = () => {
     toast.error("Tidak ada data untuk diexport!");
     return;
   }
-
+                                                                                                                                                                                                                                                                 
 const exportData = filteredData.map((d) => ({
   "No Laporan": d.no_laporan || "",
   "Tanggal Estimasi": d.tanggal_estimasi_full || "",
@@ -3340,18 +3352,17 @@ const filteredAndSortedUpdatePlanData = dataList
       // ===============================
       // ➕ FILTER TAHUN (FIX 2026)
       // ===============================
-      const dataYear =
-        d.tahun?.toString() ||
-        (d.tanggal_estimasi_full
-          ? d.tanggal_estimasi_full.split("/")?.[2]
-          : null) ||
-        (d.created_at
-          ? new Date(d.created_at).getFullYear().toString()
-          : null);
+    const dataYear =
+  getYearFromTanggal(d.tanggal_estimasi_full) ||
+  getYearFromTanggal(d.tanggal_realisasi_full) ||
+  d.tahun?.toString() ||
+  null;
 
-      const matchTahun =
-        !selectedYearUpdatePlan ||
-        dataYear === selectedYearUpdatePlan;
+
+const matchTahun =
+  !selectedYearUpdatePlan ||
+  dataYear === selectedYearUpdatePlan;
+
 
       // ===============================
       // 📅 AMBIL BULAN
@@ -5666,8 +5677,8 @@ onClick={(data: any) => {
   </select>
 
 <select
-  value={selectedYear}
-  onChange={(e) => setSelectedYear(e.target.value)}
+  value={selectedYearUpdatePlan}
+  onChange={(e) => setSelectedYearUpdatePlan(e.target.value)}
   className="border rounded px-2 py-1"
 >
   {yearOptions.map((year) => (
@@ -5676,6 +5687,7 @@ onClick={(data: any) => {
     </option>
   ))}
 </select>
+
 
 
  <select
