@@ -26,6 +26,12 @@ interface PicSO {
   pic_so_items: PicSOItem[];
 }
 
+interface PicMaster {
+  id: string;
+  name: string;
+}
+
+
 export default function PicSOPage() {
   const router = useRouter();
   const [data, setData] = useState<PicSO[]>([]);
@@ -40,15 +46,30 @@ const [tipe, setTipe] = useState<"CABANG" | "STORE" | null>(null);
   const [namaItem, setNamaItem] = useState("");
   const [saving, setSaving] = useState(false);
 
+const [picMaster, setPicMaster] = useState<PicMaster[]>([]);
+const [selectedPicId, setSelectedPicId] = useState<string>("");
+const [selectedPicName, setSelectedPicName] = useState("");
 
 
   /* ===== EDIT STATE ===== */
   const [editId, setEditId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+const fetchPicMaster = async () => {
+  const { data, error } = await supabase
+    .from("pic")
+    .select("id, name")
+    .order("name");
+
+  if (!error) setPicMaster(data || []);
+};
+
+
+useEffect(() => {
+  fetchData();
+  fetchPicMaster();
+}, []);
+
 
   const fetchData = async () => {
     const { data } = await supabase
@@ -75,7 +96,10 @@ const [tipe, setTipe] = useState<"CABANG" | "STORE" | null>(null);
 const handleSave = async () => {
   if (saving) return;
 
-  if (!namaTeam.trim() || !namaItem.trim()) {
+  const teamUpper = namaTeam.trim().toUpperCase();
+  const lokasiUpper = namaItem.trim().toUpperCase();
+
+  if (!teamUpper || !lokasiUpper) {
     toast.error("Lengkapi data");
     return;
   }
@@ -91,29 +115,24 @@ const handleSave = async () => {
   try {
     setSaving(true);
 
-    /* ===== CEK TEAM ===== */
     const { data: existingTeam } = await supabase
       .from("pic_so")
       .select("id")
-      .eq("nama_team_so", namaTeam)
+      .eq("nama_team_so", teamUpper)
       .maybeSingle();
 
-    /* ===== PASTIKAN TEAM ID ===== */
     const teamId =
       existingTeam?.id ??
       (
         await supabase
           .from("pic_so")
-          .insert({ nama_team_so: namaTeam })
+          .insert({ nama_team_so: teamUpper }) // ✅ CAPITAL
           .select("id")
           .single()
       ).data?.id;
 
-    if (!teamId) {
-      throw new Error("Gagal menyimpan team");
-    }
+    if (!teamId) throw new Error("Gagal menyimpan team");
 
-    /* ===== INSERT ITEM ===== */
     await supabase.from("pic_so_items").insert({
       pic_so_id: teamId,
       kategori,
@@ -121,26 +140,25 @@ const handleSave = async () => {
         kategori === "DALAM_KOTA" || kategori === "LUAR_KOTA"
           ? tipe
           : null,
-      nama: namaItem,
+      nama: lokasiUpper, // ✅ CAPITAL
     });
 
-    /* ===== OPTIMISTIC UPDATE (TANPA team VARIABLE) ===== */
     setData((prev) => {
-      const teamExist = prev.find((t) => t.id === teamId);
-
       const newItem: PicSOItem = {
         id: crypto.randomUUID(),
         kategori,
         tipe,
-        nama: namaItem,
+        nama: lokasiUpper, // ✅ CAPITAL
       };
+
+      const teamExist = prev.find((t) => t.id === teamId);
 
       if (!teamExist) {
         return [
           ...prev,
           {
             id: teamId,
-            nama_team_so: namaTeam,
+            nama_team_so: teamUpper,
             pic_so_items: [newItem],
           },
         ];
@@ -154,15 +172,15 @@ const handleSave = async () => {
     });
 
     toast.success("Data tersimpan");
-
     setNamaItem("");
-    setShowForm(false);
+
   } catch (err: any) {
     toast.error(err.message ?? "Terjadi kesalahan");
   } finally {
     setSaving(false);
   }
 };
+
 
   /* ================= UPDATE ================= */
   const handleUpdate = async (id: string) => {
@@ -203,6 +221,10 @@ const handleSave = async () => {
         </div>
       );
     }
+
+
+
+
 
     return (
       <div className="flex justify-between items-center group">
@@ -273,12 +295,28 @@ const handleSave = async () => {
           <CardContent className="p-6 space-y-4">
             <h2 className="font-semibold text-lg">Tambah Data PIC SO</h2>
 
-            <input
-              placeholder="Nama Team SO"
-              value={namaTeam}
-              onChange={(e) => setNamaTeam(e.target.value)}
-              className="border rounded-lg px-3 py-2 w-full"
-            />
+<select
+  value={selectedPicId}
+  onChange={(e) => {
+    const id = e.target.value;
+    setSelectedPicId(id);
+
+    const pic = picMaster.find((p) => p.id === id);
+setSelectedPicName(pic?.name || "");
+setNamaTeam(pic?.name || ""); // ✅ FIX
+
+  }}
+  className="border rounded-lg px-3 py-2 col-span-2"
+>
+
+  <option value="">Pilih PIC</option>
+  {picMaster.map((p) => (
+    <option key={p.id} value={p.id}>
+      {p.name}
+    </option>
+  ))}
+</select>
+
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
   {/* ===== KATEGORI ===== */}
