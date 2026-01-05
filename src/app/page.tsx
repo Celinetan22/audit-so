@@ -115,6 +115,7 @@ type AuditData = {
   modern: string;
   whz: string;
   description?: string;
+  notes?: string; // 🆕 frontend-only
   status: string;
   created_at?: string | null;
   edited_at?: string | null;
@@ -577,6 +578,7 @@ const [expandedRowId, setExpandedRowId] = useState<number | null>(null);
 const [approvalMonthFilter, setApprovalMonthFilter] = useState<string>("");
   
 const [updatePlanData, setUpdatePlanData] = useState<UpdatePlanItem[]>([]);
+const [notes, setNotes] = useState("");
 
 
 const [isCollapsed, setIsCollapsed] = useState(false);
@@ -1649,6 +1651,7 @@ const [formList, setFormList] = useState<AuditData[]>([
     modern: "",
     whz: "",
     company: "",
+    notes: "",
     jenisData: "",
     status: "Belum",
   },
@@ -2204,35 +2207,39 @@ if (form.jenisData === "rekon") {
       // ===============================
       //         PAYLOAD (FINAL)
       // ===============================
-      const payload: any = {
-        no_laporan: noLaporan,
-        pic: allPIC,
-        team: finalTeam,
+const payload = {
+  no_laporan: noLaporan,
+  pic: allPIC,
+  team: finalTeam,
 
-        bulan: form.bulan.toUpperCase(),
-        minggu: form.minggu,
-        tanggal_estimasi_full: tanggalEstimasiFull,
+  bulan: form.bulan.toUpperCase(),
+  minggu: form.minggu,
+  tanggal_estimasi_full: tanggalEstimasiFull,
 
-        tahun: form.tahun,
-        jabodetabek: form.jabodetabek,
-        luar_jabodetabek: form.luarJabodetabek,
+  tahun: form.tahun,
+  jabodetabek: form.jabodetabek,
+  luar_jabodetabek: form.luarJabodetabek,
 
-        cabang: form.cabang,
-        warehouse: form.warehouse,
-        tradisional: form.tradisional,
-        modern: form.modern,
-        whz: form.whz,
+  cabang: form.cabang,
+  warehouse: form.warehouse,
+  tradisional: form.tradisional,
+  modern: form.modern,
+  whz: form.whz,
 
-        description: form.description,
-        status: "Belum",
-        company: form.company,
-        jenisData: form.jenisData, // ⬅️ PENTING (snake_case)
-        created_at: new Date().toISOString(),
-      };
+  // 🔥 FIX UTAMA
+  description: form.notes,
 
-      if (form.anakCabang?.trim()) {
-        payload.anak_cabang = form.anakCabang;
-      }
+
+  status: "Belum",
+  company: form.company,
+  jenisData: form.jenisData, // ⬅️ snake_case (lebih aman)
+  created_at: new Date().toISOString(),
+
+  ...(form.anakCabang?.trim()
+    ? { anak_cabang: form.anakCabang }
+    : {}),
+};
+
 
       // ===============================
       //        INSERT DB
@@ -2272,28 +2279,32 @@ if (form.jenisData === "rekon") {
     // ===============================
     //        RESET FORM
     // ===============================
-    setFormList([
-      {
-        pic: [],
-        team: [],
-        customPic: "",
-        bulan: "",
-        minggu: "",
-        tanggal: "",
-        tahun: new Date().getFullYear().toString(),
-        jabodetabek: "",
-        luarJabodetabek: "",
-        cabang: "",
-        anakCabang: "",
-        warehouse: "",
-        tradisional: "",
-        modern: "",
-        whz: "",
-        company: "",
-        jenisData: "",
-        status: "Belum",
-      },
-    ]);
+   setFormList([
+  {
+    pic: [],
+    team: [],
+    customPic: "",
+    bulan: "",
+    minggu: "",
+    tanggal: "",
+    tahun: new Date().getFullYear().toString(),
+    jabodetabek: "",
+    luarJabodetabek: "",
+    cabang: "",
+    anakCabang: "",
+    warehouse: "",
+    tradisional: "",
+    modern: "",
+    whz: "",
+    company: "",
+    jenisData: "",
+    status: "Belum",
+
+    // 🔥 TAMBAHKAN
+    notes: "",
+  },
+]);
+
   } catch (err) {
     console.error("❌ Fatal submit error:", err);
     toast.error("Gagal menyimpan data!", { id: loadingToast });
@@ -3340,6 +3351,9 @@ const { error: planError } = await supabase
 
   reader.readAsArrayBuffer(file);
 };
+
+
+
 
 const filteredAndSortedUpdatePlanData = dataList
   .filter((d) => {
@@ -4869,16 +4883,6 @@ onClick={(data: any) => {
 
 
 
-        {/* Deskripsi */}
-        <div>
-          <label className="block font-semibold">Deskripsi</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="border p-2 rounded w-full"
-          />
-        </div>
-
        
 
         {/* Tombol Navigasi */}
@@ -5433,7 +5437,24 @@ onClick={(data: any) => {
 </div>
 
 
-         
+    <div className="space-y-1">
+  <label className="text-sm font-medium text-gray-700">
+    Notes
+  </label>
+
+  <textarea
+  placeholder="Tulis catatan"
+  value={formData.notes || ""}
+  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const updated = [...formList];
+    updated[index].notes = e.target.value;
+    setFormList(updated);
+  }}
+  className="w-full min-h-[80px] rounded-md border border-gray-300 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+/>
+
+</div>
+     
 
 
 
