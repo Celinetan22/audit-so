@@ -49,11 +49,27 @@ const [tipe, setTipe] = useState<"CABANG" | "STORE" | null>(null);
 const [picMaster, setPicMaster] = useState<PicMaster[]>([]);
 const [selectedPicId, setSelectedPicId] = useState<string>("");
 const [selectedPicName, setSelectedPicName] = useState("");
+/* ===== FILTER STATE ===== */
+const [filterPic, setFilterPic] = useState("");
+const [searchText, setSearchText] = useState("");
 
 
   /* ===== EDIT STATE ===== */
   const [editId, setEditId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+
+const [editMode, setEditMode] = useState(false);
+const [editTeamId, setEditTeamId] = useState<string | null>(null);
+const [editTeamName, setEditTeamName] = useState("");
+const [editItems, setEditItems] = useState<PicSOItem[]>([]);
+
+const openEditModal = (team: PicSO) => {
+  setEditMode(true);
+  setEditTeamId(team.id);
+  setEditTeamName(team.nama_team_so);
+  setEditItems(team.pic_so_items.map((i) => ({ ...i })));
+};
+
 
 const fetchPicMaster = async () => {
   const { data, error } = await supabase
@@ -267,6 +283,29 @@ const handleSave = async () => {
 
   if (loading) return <div className="p-6">Loading...</div>;
 
+const filteredData = data
+  .filter((team) =>
+    filterPic
+      ? team.nama_team_so
+          .toLowerCase()
+          .includes(filterPic.toLowerCase())
+      : true
+  )
+  .map((team) => ({
+    ...team,
+    pic_so_items: team.pic_so_items.filter((item) =>
+      searchText
+        ? item.nama
+            .toLowerCase()
+            .includes(searchText.toLowerCase())
+        : true
+    ),
+  }))
+  .filter((team) => team.pic_so_items.length > 0);
+
+
+
+
   return (
     <div className="p-6 space-y-8">
       {/* HEADER */}
@@ -288,6 +327,8 @@ const handleSave = async () => {
       </div>
 
       <h1 className="text-2xl font-bold">PIC SO Data</h1>
+
+
 
       {/* FORM INPUT */}
       {showForm && (
@@ -381,15 +422,63 @@ className={`px-4 py-2 rounded-lg text-white ${
         </Card>
       )}
 
+<Card className="border-gray-200 shadow-sm">
+  <CardContent className="p-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+    {/* FILTER PIC */}
+    <select
+      value={filterPic}
+      onChange={(e) => setFilterPic(e.target.value)}
+      className="border rounded-lg px-3 py-2"
+    >
+      <option value="">Semua PIC</option>
+      {data.map((t) => (
+        <option key={t.id} value={t.nama_team_so}>
+          {t.nama_team_so}
+        </option>
+      ))}
+    </select>
+
+    {/* SEARCH */}
+    <input
+      placeholder="Cari lokasi..."
+      value={searchText}
+      onChange={(e) => setSearchText(e.target.value)}
+      className="border rounded-lg px-3 py-2"
+    />
+
+    {/* RESET */}
+    <button
+      onClick={() => {
+        setFilterPic("");
+        setSearchText("");
+      }}
+      className="bg-gray-200 hover:bg-gray-300 rounded-lg px-3 py-2 text-sm"
+    >
+      Reset Filter
+    </button>
+  </CardContent>
+</Card>
+
+
+
       {/* PER TEAM */}
-      {data.map((team) => (
+      {filteredData.map((team) => (
         <Card key={team.id} className="rounded-2xl shadow-sm">
           <CardContent className="p-0 overflow-auto">
-            <div className="px-6 py-4 bg-gray-50 border-b">
-              <h2 className="font-bold text-lg">
-                {team.nama_team_so}
-              </h2>
-            </div>
+            <div className="px-6 py-4 bg-gray-50 border-b flex justify-between items-center">
+  <h2 className="font-bold text-lg">
+    {team.nama_team_so}
+  </h2>
+
+  <button
+    onClick={() => openEditModal(team)}
+    className="flex items-center gap-1 text-sm text-blue-600 hover:underline"
+  >
+    <Pencil className="w-4 h-4" />
+    Edit
+  </button>
+</div>
+
 
             <table className="w-full text-sm border-collapse">
 <thead>
@@ -457,6 +546,165 @@ className={`px-4 py-2 rounded-lg text-white ${
           </CardContent>
         </Card>
       ))}
+   
+   {editMode && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center">
+    {/* BACKDROP */}
+    <div
+      className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+      onClick={() => setEditMode(false)}
+    />
+
+    {/* MODAL */}
+    <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[85vh] overflow-auto p-6 space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-lg font-semibold">Edit Data PIC SO</h2>
+        <button onClick={() => setEditMode(false)}>
+          <X className="w-5 h-5 text-gray-500" />
+        </button>
+      </div>
+
+      {/* TEAM NAME */}
+      <input
+        value={editTeamName}
+        onChange={(e) =>
+          setEditTeamName(e.target.value.toUpperCase())
+        }
+        className="border rounded-lg px-3 py-2 w-full"
+        placeholder="Nama PIC"
+      />
+
+      {/* ITEMS */}
+      <div className="space-y-2">
+        {editItems.map((item, idx) => (
+          <div
+            key={item.id}
+            className="grid grid-cols-5 gap-2 items-center"
+          >
+            <input
+              value={item.nama}
+              onChange={(e) => {
+                const val = e.target.value.toUpperCase();
+                setEditItems((prev) =>
+                  prev.map((it, i) =>
+                    i === idx ? { ...it, nama: val } : it
+                  )
+                );
+              }}
+              className="border rounded px-2 py-1 col-span-2"
+            />
+
+            <select
+              value={item.kategori}
+              onChange={(e) =>
+                setEditItems((prev) =>
+                  prev.map((it, i) =>
+                    i === idx
+                      ? { ...it, kategori: e.target.value }
+                      : it
+                  )
+                )
+              }
+              className="border rounded px-2 py-1"
+            >
+              <option value="DALAM_KOTA">Dalam Kota</option>
+              <option value="LUAR_KOTA">Luar Kota</option>
+              <option value="WAREHOUSE">Warehouse</option>
+              <option value="TRADISIONAL">Traditional</option>
+              <option value="MODERN">Modern</option>
+              <option value="SERVICE_CENTER">
+                Service Center
+              </option>
+            </select>
+
+            <select
+              value={item.tipe ?? ""}
+              onChange={(e) =>
+                setEditItems((prev) =>
+                  prev.map((it, i) =>
+                    i === idx
+                      ? {
+                          ...it,
+                          tipe:
+                            e.target.value === ""
+                              ? null
+                              : (e.target.value as
+                                  | "CABANG"
+                                  | "STORE"),
+                        }
+                      : it
+                  )
+                )
+              }
+              className="border rounded px-2 py-1"
+            >
+              <option value="">-</option>
+              <option value="CABANG">Cabang</option>
+              <option value="STORE">Store</option>
+            </select>
+
+            <button
+              onClick={() =>
+                setEditItems((prev) =>
+                  prev.filter((_, i) => i !== idx)
+                )
+              }
+              className="text-red-600 hover:underline text-sm"
+            >
+              Hapus
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* ACTION */}
+      <div className="flex justify-end gap-2 pt-4 border-t">
+        <button
+          onClick={() => setEditMode(false)}
+          className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
+        >
+          Batal
+        </button>
+
+        <button
+          onClick={async () => {
+            try {
+              // update team
+              await supabase
+                .from("pic_so")
+                .update({ nama_team_so: editTeamName })
+                .eq("id", editTeamId);
+
+              // update items
+              for (const item of editItems) {
+                await supabase
+                  .from("pic_so_items")
+                  .update({
+                    nama: item.nama,
+                    kategori: item.kategori,
+                    tipe: item.tipe,
+                  })
+                  .eq("id", item.id);
+              }
+
+              toast.success("Data berhasil diperbarui");
+              setEditMode(false);
+              fetchData();
+            } catch {
+              toast.error("Gagal menyimpan perubahan");
+            }
+          }}
+          className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+        >
+          Simpan Perubahan
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+   
+   
     </div>
   );
 }
