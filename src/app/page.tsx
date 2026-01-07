@@ -90,6 +90,8 @@ type ChartRow = {
   [key: string]: number | string;
 };
 
+type AuditStatus = "Belum" | "On Progress" | "Sudah" | "Cancel";
+
 type AuditData = {
   id?: number;
   pic: string[];
@@ -116,7 +118,7 @@ type AuditData = {
   whz: string;
   description?: string;
   notes?: string; // 🆕 frontend-only
-  status: string;
+  status:  AuditStatus;
   created_at?: string | null;
   edited_at?: string | null;
   file_url?: string | null;
@@ -487,7 +489,9 @@ export default function AuditApp() {
   const [selectedBulanUpdatePlan, setSelectedBulanUpdatePlan] = useState(""); // Sekarang digunakan
 
   const [searchTanggal, setSearchTanggal] = useState("");
-  const [statusTab, setStatusTab] = useState<""| "Belum" | "Sudah" | "On Progress">("");
+const [statusTab, setStatusTab] =
+  useState<"" | "Belum" | "Sudah" | "On Progress" | "Cancel">("");
+
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
   const [selectedPICDetail, setSelectedPICDetail] = useState("");
   
@@ -752,20 +756,6 @@ const handleBarClick = (payload: any) => {
   setSelectedSubKategori("");
 };
 
-
-const toggleRowExpand = (id: number) => {
-  setExpandedRowId(expandedRowId === id ? null : id);
-};
-
-const filteredByKategori = selectedKategori
-  ? dataList.filter((d) => d[selectedKategori as keyof AuditData])
-  : dataList;
-
-const pieDataKategori = [
-  { name: "Sudah", value: filteredByKategori.filter((d) => d.status === "Sudah").length, color: "#A7F3D0" },
-  { name: "Belum", value: filteredByKategori.filter((d) => d.status === "Belum").length, color: "#FDE68A" },
-  { name: "On Progress", value: filteredByKategori.filter((d) => d.status === "On Progress").length, color: "#BFDBFE" },
-];
 
 
 
@@ -1308,36 +1298,14 @@ const onProgressBulanTarget = bulanTargetData.filter(
   (d) => d.status === "On Progress"
 ).length;
 
+const cancelBulanTarget = bulanTargetData.filter(
+  (d) => d.status === "Cancel"
+).length;
 
 
 
 
 
-// Group per bulan sesuai status
-const groupedByBulanStatus = dataList.reduce((acc: any, d) => {
-  const bulanKey = d.bulan ? d.bulan.trim().toUpperCase() : "";
-  if (!bulanKey) return acc;
-
-  // 🔹 inisialisasi data bulan
-  if (!acc[bulanKey]) {
-    acc[bulanKey] = { bulan: bulanKey, sudah: 0, belum: 0, onprogress: 0 };
-  }
-
-  // 🔹 Gunakan getEffectiveStatus agar logika konsisten
-  const todayNum = new Date().getDate();
-  const currentMonthStr = new Date()
-    .toLocaleString("id-ID", { month: "long" })
-    .toUpperCase();
-
-  const statusEfektif = getEffectiveStatus(d, todayNum, currentMonthStr);
-
-  // 🔹 Tambahkan ke kategori sesuai status efektif
-  if (statusEfektif === "Sudah") acc[bulanKey].sudah++;
-  else if (statusEfektif === "On Progress") acc[bulanKey].onprogress++;
-  else acc[bulanKey].belum++;
-
-  return acc;
-}, {});
 
 
 
@@ -2333,7 +2301,15 @@ function isTodayInRange(tanggalStr: string, today: number): boolean {
 }
 
 // helper: hitung status 'efektif' sebuah record
-function getEffectiveStatus(d: AuditData, todayNum: number, currentMonthStr: string): "Sudah" | "On Progress" | "Belum" {
+function getEffectiveStatus(
+  d: AuditData,
+  todayNum: number,
+  currentMonthStr: string
+): "Sudah" | "On Progress" | "Belum" | "Cancel" {
+
+  // ⛔ CANCEL = FINAL, TIDAK BOLEH BERUBAH
+  if (d.status === "Cancel") return "Cancel";
+
   // jika sudah jelas 'Sudah' di DB -> tetap Sudah
   if (d.status === "Sudah") return "Sudah";
 
@@ -2352,7 +2328,6 @@ function getEffectiveStatus(d: AuditData, todayNum: number, currentMonthStr: str
   // sisanya dianggap Belum
   return "Belum";
 }
-
 
 const parseDate = (str: string): Date | null => {
   const parts = str.split("/");
@@ -3045,7 +3020,10 @@ const handleEditChange = (
   };
 
 // Toggle Status langsung
-const handleToggleStatus = async (id: number, newStatus: string) => {
+const handleToggleStatus = async (
+  id: number,
+  newStatus: AuditStatus
+) => {
   const { error } = await supabase
     .from("audit_full")
     .update({ status: newStatus })
@@ -3056,11 +3034,14 @@ const handleToggleStatus = async (id: number, newStatus: string) => {
     toast.error("Update status gagal!");
   } else {
     setDataList((prev) =>
-      prev.map((d) => (d.id === id ? { ...d, status: newStatus } : d))
+      prev.map((d) =>
+        d.id === id ? { ...d, status: newStatus } : d
+      )
     );
     toast.success(`Status berhasil diubah menjadi ${newStatus}`);
   }
 };
+
 
 
 
@@ -5607,6 +5588,7 @@ onClick={(data: any) => {
     </p>
 
     <div className="flex items-center gap-2">
+    
       {/* Tandai Selesai */}
       <button
         onClick={async () => {
@@ -5616,9 +5598,12 @@ onClick={(data: any) => {
 
           if (idsToUpdate.length === 0) return;
 
-          const newDataList = dataList.map((d) =>
-            idsToUpdate.includes(d.id!) ? { ...d, status: "Sudah" } : d
-          );
+const newDataList = dataList.map((d) =>
+  idsToUpdate.includes(d.id!)
+    ? { ...d, status: "Sudah" as AuditStatus }
+    : d
+);
+
           setDataList(newDataList);
           setSelectedIndices([]);
 
@@ -6151,24 +6136,29 @@ paginatedUpdatePlanData.map((d, i) => (
         </td>
 
         {/* Status (Tetap Editable!) */}
-        <td className="p-2 border border-gray-300">
-          <select
-            value={d.status}
-            onChange={(e) => handleToggleStatus(d.id!, e.target.value)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium border
-              ${
-                d.status === "Sudah"
-                  ? "border-green-500 text-green-600 bg-green-50"
-                  : d.status === "On Progress"
-                  ? "border-blue-500 text-blue-600 bg-blue-50"
-                  : "border-yellow-500 text-yellow-600 bg-yellow-50"
-              }`}
-          >
-            <option value="Belum">⏳ Belum</option>
-            <option value="On Progress">🔄 On Progress</option>
-            <option value="Sudah">✅ Sudah</option>
-          </select>
-        </td>
+       <td className="p-2 border border-gray-300">
+  <select
+    value={d.status}
+    onChange={(e) =>
+      handleToggleStatus(d.id!, e.target.value as AuditStatus)
+    }
+    className={`px-3 py-1.5 rounded-full text-sm font-medium border
+      ${
+        d.status === "Sudah"
+          ? "border-green-500 text-green-600 bg-green-50"
+          : d.status === "On Progress"
+          ? "border-blue-500 text-blue-600 bg-blue-50"
+          : d.status === "Cancel"
+          ? "border-red-500 text-red-600 bg-red-50"
+          : "border-yellow-500 text-yellow-600 bg-yellow-50"
+      }`}
+  >
+    <option value="Belum">⏳ Belum</option>
+    <option value="On Progress">🔄 On Progress</option>
+    <option value="Sudah">✅ Sudah</option>
+    <option value="Cancel">❌ Cancel</option>
+  </select>
+</td>
 
         {/* Created At */}
         <td className="p-2 border border-gray-300 text-gray-600">
