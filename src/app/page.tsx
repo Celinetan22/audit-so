@@ -2300,32 +2300,23 @@ function isTodayInRange(tanggalStr: string, today: number): boolean {
   return !isNaN(num) && num === today;
 }
 
-// helper: hitung status 'efektif' sebuah record
 function getEffectiveStatus(
   d: AuditData,
   todayNum: number,
   currentMonthStr: string
-): "Sudah" | "On Progress" | "Belum" | "Cancel" {
-
-  // ⛔ CANCEL = FINAL, TIDAK BOLEH BERUBAH
+): AuditStatus {
   if (d.status === "Cancel") return "Cancel";
-
-  // jika sudah jelas 'Sudah' di DB -> tetap Sudah
   if (d.status === "Sudah") return "Sudah";
-
-  // jika di DB memang On Progress -> On Progress
   if (d.status === "On Progress") return "On Progress";
 
-  // jika bulan sama dengan bulan target/now dan tanggal mencakup hari ini -> On Progress
   if (
-    d.bulan?.toUpperCase() === currentMonthStr.toUpperCase() &&
+    d.bulan?.toUpperCase() === currentMonthStr &&
     !!d.tanggal &&
     isTodayInRange(d.tanggal, todayNum)
   ) {
     return "On Progress";
   }
 
-  // sisanya dianggap Belum
   return "Belum";
 }
 
@@ -2506,25 +2497,39 @@ const filteredStatusPlanData = dataList.filter((d) => {
   // ===============================
   // 🔹 STATUS LOGIC (TETAP)
   // ===============================
-  if (statusTab === "On Progress") {
-    matchStatus =
-      d.status === "On Progress" ||
-      (
-        d.bulan?.toUpperCase() === currentMonth &&
-        !!d.tanggal &&
-        isTodayInRange(d.tanggal, todayNum)
-      );
-  } else if (statusTab === "Belum") {
-    matchStatus =
-      d.status === "Belum" &&
-      !(
-        d.bulan?.toUpperCase() === currentMonth &&
-        !!d.tanggal &&
-        isTodayInRange(d.tanggal, todayNum)
-      );
-  } else if (statusTab === "Sudah") {
-    matchStatus = d.status === "Sudah";
-  }
+// ===============================
+// 🔹 STATUS LOGIC (SUPPORT CANCEL)
+// ===============================
+if (statusTab === "Cancel") {
+  // ⛔ Cancel = FINAL (DB only)
+  matchStatus = d.status === "Cancel";
+
+} else if (statusTab === "On Progress") {
+  matchStatus =
+    d.status === "On Progress" ||
+    (
+      d.status !== "Cancel" && // ⛔ jangan auto untuk Cancel
+      d.bulan?.toUpperCase() === currentMonth &&
+      !!d.tanggal &&
+      isTodayInRange(d.tanggal, todayNum)
+    );
+
+} else if (statusTab === "Belum") {
+  matchStatus =
+    d.status === "Belum" &&
+    !(
+      d.bulan?.toUpperCase() === currentMonth &&
+      !!d.tanggal &&
+      isTodayInRange(d.tanggal, todayNum)
+    );
+
+} else if (statusTab === "Sudah") {
+  matchStatus = d.status === "Sudah";
+
+} else {
+  // Semua
+  matchStatus = true;
+}
 
   // ===============================
   // 🔹 FILTER TAHUN (BARU)
@@ -2599,10 +2604,19 @@ let totalBelum = 0;
 // 🔹 Hitung status efektif
 filteredYearData.forEach((d) => {
   const statusEfektif = getEffectiveStatus(d, todayNum, currentMonthStr);
-  if (statusEfektif === "Sudah") totalSudah++;
-  else if (statusEfektif === "On Progress") totalOnProgress++;
-  else totalBelum++;
+
+  if (statusEfektif === "Sudah") {
+    totalSudah++;
+  } else if (statusEfektif === "On Progress") {
+    totalOnProgress++;
+  } else if (statusEfektif === "Cancel") {
+    // ⛔ Cancel tidak dihitung ke progress
+    // bisa kosong, atau increment counter khusus
+  } else {
+    totalBelum++;
+  }
 });
+
 
 // 🔹 Persentase (biar 100%)
 const percentSudah = totalData ? Math.round((totalSudah / totalData) * 100) : 0;
@@ -7289,16 +7303,30 @@ const countBelum = dataList.filter((d) => {
 }).length;
 
 
-    const tabs = [
-      { label: "Belum", color: "bg-yellow-500", count: countBelum},
-      { label: "On Progress", color: "bg-blue-600", count: countOnProgress },
-      { label: "Sudah", color: "bg-green-600", count: countSudah },
-    ];
+const countCancel = dataList.filter((d) => {
+  if (
+    selectedYearStatusPlan &&
+    getTahunData(d) !== selectedYearStatusPlan
+  )
+    return false;
+
+  return d.status === "Cancel";
+}).length;
+
+
+const tabs = [
+  { label: "Belum", color: "bg-yellow-500", count: countBelum },
+  { label: "On Progress", color: "bg-blue-600", count: countOnProgress },
+  { label: "Sudah", color: "bg-green-600", count: countSudah },
+  { label: "Cancel", color: "bg-red-600", count: countCancel },
+];
+
 
     return tabs.map((tab) => (
      <button
   key={tab.label}
-  onClick={() => setStatusTab(tab.label as "On Progress" | "Belum" | "Sudah")}
+onClick={() => setStatusTab(tab.label as AuditStatus)}
+
   className={`relative flex items-center gap-2 px-6 py-2.5 mx-2 text-sm font-semibold rounded-full transition-all duration-300
     ${
       statusTab === tab.label
@@ -7477,22 +7505,21 @@ const countBelum = dataList.filter((d) => {
         </td>
 
         <td className="px-4 py-2 text-center">
-          <span
-            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold
-              ${
-                d.status === "Sudah"
-                  ? "bg-green-100 text-green-700"
-                  : d.status === "On Progress"
-                  ? "bg-blue-100 text-blue-700"
-                  : "bg-yellow-100 text-yellow-700"
-              }`}
-          >
-            {d.status === "Sudah"
-              ? "Sudah"
-              : d.status === "On Progress"
-              ? "On Progress"
-              : "Belum"}
-          </span>
+<span
+  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold
+    ${
+      d.status === "Sudah"
+        ? "bg-green-100 text-green-700"
+        : d.status === "On Progress"
+        ? "bg-blue-100 text-blue-700"
+        : d.status === "Cancel"
+        ? "bg-red-100 text-red-700"
+        : "bg-yellow-100 text-yellow-700"
+    }`}
+>
+  {d.status}
+</span>
+
         </td>
       </tr>
     ))
