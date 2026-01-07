@@ -1304,15 +1304,10 @@ const sudahBulanTarget = bulanTargetData.filter((d) => d.status === "Sudah").len
 const belumBulanTarget = bulanTargetData.filter((d) => d.status === "Belum").length;
 
 
-const onProgressBulanTarget = bulanTargetData.filter((d) => {
-  const todayNum = new Date().getDate();
-  const currentMonthStr = new Date()
-    .toLocaleString("id-ID", { month: "long" })
-    .toUpperCase();
+const onProgressBulanTarget = bulanTargetData.filter(
+  (d) => d.status === "On Progress"
+).length;
 
-  // 🔹 Gunakan logika status efektif agar konsisten
-  return getEffectiveStatus(d, todayNum, currentMonthStr) === "On Progress";
-}).length;
 
 
 
