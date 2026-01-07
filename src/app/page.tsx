@@ -490,7 +490,7 @@ export default function AuditApp() {
 
   const [searchTanggal, setSearchTanggal] = useState("");
 const [statusTab, setStatusTab] =
-  useState<"" | "Belum" | "Sudah" | "On Progress" | "Cancel">("");
+  useState<"" | AuditStatus>("");
 
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
   const [selectedPICDetail, setSelectedPICDetail] = useState("");
@@ -3380,14 +3380,19 @@ const matchTahun =
       // ===============================
       // 🚦 STATUS TAB
       // ===============================
-      const matchStatus =
-        statusTab === "Belum"
-          ? d.status === "Belum"
-          : statusTab === "On Progress"
-          ? d.status === "On Progress" || isAutoOnProgress
-          : statusTab === "Sudah"
-          ? d.status === "Sudah"
-          : true;
+const matchStatus =
+  !statusTab
+    ? true
+    : statusTab === "Cancel"
+    ? d.status === "Cancel"
+    : statusTab === "Belum"
+    ? d.status === "Belum"
+    : statusTab === "On Progress"
+    ? d.status === "On Progress" || isAutoOnProgress
+    : statusTab === "Sudah"
+    ? d.status === "Sudah"
+    : true;
+
 
       // ===============================
       // 📆 FILTER BULAN
@@ -5771,17 +5776,20 @@ const newDataList = dataList.map((d) =>
 
 {/* === TAB STATUS (Simple Underline Style) === */}
 <div className="flex items-center gap-6 border-b border-slate-200 mt-3 w-full overflow-x-auto">
-  {[
-    { key: "", label: "Semua" },
-    { key: "Belum", label: "Belum" },
-    { key: "On Progress", label: "On Progress" },
-    { key: "Sudah", label: "Sudah" },
-  ].map(({ key, label }) => {
+{[
+  { key: "", label: "Semua" },
+  { key: "Belum", label: "Belum" },
+  { key: "On Progress", label: "On Progress" },
+  { key: "Sudah", label: "Sudah" },
+  { key: "Cancel", label: "Cancel" },
+].map(({ key, label }) => {
+
     const isActive = statusTab === key;
     return (
       <button
         key={key || "Semua"}
-        onClick={() => setStatusTab(key as "" | "Belum" | "On Progress" | "Sudah")}
+       onClick={() => setStatusTab(key as "" | AuditStatus)}
+
         className={`relative pb-2 text-sm font-medium transition-all duration-200
           ${
             isActive
