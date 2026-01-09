@@ -3711,20 +3711,8 @@ const globalStatus = {
   belum: dataList.filter(d => d.status === "Belum").length,
 };
 
-const pieData = [
-  { name: "Sudah", value: globalStatus.sudah },
-  { name: "On Progress", value: globalStatus.onprogress },
-  { name: "Belum", value: globalStatus.belum },
-];
-
-const COLORS = ["#22c55e", "#3b82f6", "#facc15"]; // hijau, biru, kuning
 
 
-const pieDataDashboard = [
-  { name: "Sudah", value: globalStatus.sudah, fill: "#22c55e" },
-  { name: "On Progress", value: globalStatus.onprogress, fill: "#3b82f6" },
-  { name: "Belum", value: globalStatus.belum, fill: "#facc15" },
-];
 
 const [userRole, setUserRole] = useState<string | null>(null);
 
@@ -4092,7 +4080,6 @@ onClick={() => {
       <button
         onClick={async () => {
           await supabase.auth.signOut();
-          toast.success("Berhasil logout");
           router.push("/auth/signin");
         }}
         className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-xl flex items-center gap-2"

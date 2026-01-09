@@ -38,7 +38,7 @@ localStorage.setItem("user", JSON.stringify({
 }));
 
 
-  toast.success("✅ Login berhasil!");
+  toast.success(" Login berhasil!");
   router.push("/");
 } catch (err) {
   console.error(err);
