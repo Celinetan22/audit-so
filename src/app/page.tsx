@@ -132,6 +132,15 @@ type AuditData = {
   anakCabang?: string; 
   approved_by?: string[]; // ✅ tambahkan ini
   customPic?: string;
+    is_checked?: boolean;
+      checklist_1?: boolean;
+  checklist_1_by?: string;
+
+  checklist_2?: boolean;
+  checklist_2_by?: string;
+
+  checklist_3?: boolean;
+  checklist_3_by?: string;
 };
 
 type Cabang = {
@@ -535,6 +544,8 @@ const [selectedYearUpdatePlan, setSelectedYearUpdatePlan] =
   useState("");
 
 
+  
+
   const [jabodetabekOptions, setJabodetabekOptions] = useState<any[]>([]);
 const [luarJaboOptions, setLuarJaboOptions] = useState<any[]>([]);
 const [tradisionalOptions, setTradisionalOptions] = useState<any[]>([]);
@@ -566,14 +577,48 @@ const [serviceCenterOptions, setServiceCenterOptions] = useState<any[]>([]);
   const [selectedYearStatusPlan, setSelectedYearStatusPlan] = useState("");
 
 
-  
+const [filterTanggalRange, setFilterTanggalRange] =
+  useState<[Date | null, Date | null]>([null, null]);
+
+const [filterTanggalAwal, filterTanggalAkhir] = filterTanggalRange;
+
+
+const parseTanggalToDate = (val?: string | null) => {
+  if (!val) return null;
+
+  // ambil tanggal pertama kalau range "01-05/02/2026"
+  const first = val.split(" - ")[0].trim();
+
+  // dd/mm/yyyy
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(first)) {
+    const [d, m, y] = first.split("/");
+    return new Date(Number(y), Number(m) - 1, Number(d));
+  }
+
+  // yyyy-mm-dd
+  if (/^\d{4}-\d{2}-\d{2}$/.test(first)) {
+    return new Date(first);
+  }
+
+  return null;
+};
+
+
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [selectedDashboardBulan, setSelectedDashboardBulan] = useState<string | null>(null);
   const [selectedDashboardTahun, setSelectedDashboardTahun] = useState<string>(
   new Date().getFullYear().toString()
 );
   
-  
+  // filter bulan
+const [filterBulanUpdatePlan, setFilterBulanUpdatePlan] = useState("");
+
+// filter tanggal (range)
+const [filterDateRange, setFilterDateRange] =
+  useState<[Date | null, Date | null]>([null, null]);
+
+const [filterStartDate, filterEndDate] = filterDateRange;
+
   
   const [modernOptions, setModernOptions] = useState<{ id: number; name: string }[]>([]);
   const [reportFilesMap, setReportFilesMap] = useState<Record<string, boolean>>({});
@@ -3442,6 +3487,26 @@ const matchStatus =
             .includes(searchTanggal.toLowerCase())
         : true;
 
+        // ===============================
+// 🗓️ FILTER TANGGAL (DATE PICKER)
+// ===============================
+const tanggalData =
+  parseTanggalToDate(d.tanggal_estimasi_full) ||
+  parseTanggalToDate(d.tanggal_realisasi_full) ||
+  parseTanggalToDate(d.tanggal);
+
+const matchTanggalRange =
+  filterTanggalAwal || filterTanggalAkhir
+    ? (() => {
+        if (!tanggalData) return false;
+        if (filterTanggalAwal && tanggalData < filterTanggalAwal)
+          return false;
+        if (filterTanggalAkhir && tanggalData > filterTanggalAkhir)
+          return false;
+        return true;
+      })()
+    : true;
+
       // ===============================
       // 🔎 TEXT SEARCH
       // ===============================
@@ -3485,6 +3550,7 @@ const matchStatus =
         matchTahun && // 🔥 FIX UTAMA 2026
         matchStatus &&
         matchBulan &&
+         matchTanggalRange && // 
         matchPic &&
         matchTanggal &&
         matchText &&
@@ -3715,6 +3781,20 @@ const globalStatus = {
 
 
 const [userRole, setUserRole] = useState<string | null>(null);
+
+useEffect(() => {
+  const getUser = async () => {
+    const { data } = await supabase.auth.getUser();
+    setUsername(
+      data.user?.user_metadata?.username ||
+      data.user?.email ||
+      null
+    );
+  };
+
+  getUser();
+}, []);
+
 
 useEffect(() => {
   const fetchUser = async () => {
@@ -5726,6 +5806,25 @@ const newDataList = dataList.map((d) =>
   ))}
 </select>
 
+{/* FILTER TANGGAL */}
+<DatePicker
+  selectsRange
+  startDate={filterTanggalAwal}
+  endDate={filterTanggalAkhir}
+  onChange={(update) => setFilterTanggalRange(update)}
+  isClearable
+  dateFormat="dd/MM/yyyy"
+  placeholderText="Filter Tanggal"
+  className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm 
+             focus:ring-2 focus:ring-blue-400 focus:outline-none transition w-[220px]"
+
+  popperPlacement="bottom-start"
+  popperClassName="z-[9999]"
+  popperContainer={({ children }) => (
+    <div className="z-[9999]">{children}</div>
+  )}
+/>
+
 
 
 {/* Filter Kategori */}
@@ -5904,6 +6003,10 @@ const newDataList = dataList.map((d) =>
         <th className="border border-gray-200 p-2">Created At</th>
 
         <th className="border border-gray-200 p-2">Upload Laporan</th>
+        <th className="border border-gray-200 p-2 text-center">
+  Checklist
+</th>
+
 
 {/* Filter No Laporan */}
 <th className="border border-gray-200 p-2 text-center">
@@ -6201,12 +6304,36 @@ paginatedUpdatePlanData.map((d, i) => (
           </button>
         </td>
 
+<td className="p-2 border border-gray-300 text-center">
+  <input
+    type="checkbox"
+    checked={!!d.is_checked} // boolean dari database / state
+    onChange={async (e) => {
+      const checked = e.target.checked;
+
+      // update local state
+      setDataList((prev) =>
+        prev.map((item) =>
+          item.id === d.id ? { ...item, is_checked: checked } : item
+        )
+      );
+
+      // update database
+      await supabase
+        .from("audit_full")
+        .update({ is_checked: checked })
+        .eq("id", d.id);
+    }}
+    className="w-4 h-4 accent-blue-600 cursor-pointer"
+  />
+</td>
+
+
         {/* No Laporan */}
         <td className="p-2 border border-gray-300">
           {highlightText(d.no_laporan || "", searchText)}
         </td>
 
-        
 
         {/* Aksi */}
         <td className="p-2 border border-gray-300">
