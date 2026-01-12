@@ -328,6 +328,48 @@ function formatDate(dateStr: string): string {
   return dateStr;
 }
 
+function formatToDDMMYYYY(date: Date | string | null): string {
+  if (!date) return "";
+
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "";
+
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+
+  return `${day}/${month}/${year}`;
+}
+
+function formatToDDMMYYYYDisplay(value?: string | null): string {
+  if (!value) return "-";
+
+  // ===== RANGE =====
+  if (value.includes(" - ")) {
+    const [a, b] = value.split(" - ");
+    return `${formatToDDMMYYYYDisplay(a.trim())} - ${formatToDDMMYYYYDisplay(b.trim())}`;
+  }
+
+  // ===== yyyy-mm-dd =====
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [y, m, d] = value.split("-");
+    return `${d}/${m}/${y}`;
+  }
+
+  // ===== dd-mm-yyyy 🔥 (INI YANG KURANG) =====
+  if (/^\d{2}-\d{2}-\d{4}$/.test(value)) {
+    const [d, m, y] = value.split("-");
+    return `${d}/${m}/${y}`;
+  }
+
+  // ===== dd/mm/yyyy (SUDAH BENAR) =====
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
+    return value;
+  }
+
+  return value; // fallback
+}
+
 
 
 function formatDateDisplay(value: string): string {
@@ -505,6 +547,14 @@ const [statusTab, setStatusTab] =
   const [selectedPICDetail, setSelectedPICDetail] = useState("");
   
   const [searchCabangText, setSearchCabangText] = useState("");
+  const [estimasiRange, setEstimasiRange] = useState<[Date | null, Date | null]>([
+  null,
+  null,
+]);
+  const [realisasiRange, setRealisasiRange] = useState<[Date | null, Date | null]>([
+  null,
+  null,
+]);
 
   const [searchPicUpdatePlan, setSearchPicUpdatePlan] = useState(""); // Sekarang digunakan
   const [searchPicStatusPlan, setSearchPicStatusPlan] = useState("");
@@ -604,6 +654,15 @@ const parseTanggalToDate = (val?: string | null) => {
 };
 
 
+const formatToDDMMYYYY = (date: Date | null) => {
+  if (!date) return "";
+  const d = String(date.getDate()).padStart(2, "0");
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const y = date.getFullYear();
+  return `${d}/${m}/${y}`;
+};
+
+
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [selectedDashboardBulan, setSelectedDashboardBulan] = useState<string | null>(null);
   const [selectedDashboardTahun, setSelectedDashboardTahun] = useState<string>(
@@ -620,6 +679,21 @@ const [filterDateRange, setFilterDateRange] =
 const [filterStartDate, filterEndDate] = filterDateRange;
 
   
+const parseDDMMYYYYToDate = (val?: string | null) => {
+  if (!val) return null;
+
+  // kalau range ambil tanggal pertama
+  const first = val.split(" - ")[0].trim();
+
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(first)) {
+    const [d, m, y] = first.split("/");
+    return new Date(Number(y), Number(m) - 1, Number(d));
+  }
+
+  return null;
+};
+
+
   const [modernOptions, setModernOptions] = useState<{ id: number; name: string }[]>([]);
   const [reportFilesMap, setReportFilesMap] = useState<Record<string, boolean>>({});
   const [originalNoLaporan, setOriginalNoLaporan] = useState<string | null>(null);
@@ -1194,6 +1268,46 @@ useEffect(() => {
 
   fetchModernOptions();
 }, []);
+
+useEffect(() => {
+  // ===== ESTIMASI =====
+  if (editingData?.tanggal_estimasi_full) {
+    const val = editingData.tanggal_estimasi_full;
+
+    if (val.includes(" - ")) {
+      const [a, b] = val.split(" - ");
+      setEstimasiRange([
+        parseDDMMYYYYToDate(a),
+        parseDDMMYYYYToDate(b),
+      ]);
+    } else {
+      setEstimasiRange([parseDDMMYYYYToDate(val), null]);
+    }
+  } else {
+    setEstimasiRange([null, null]);
+  }
+
+  // ===== REALISASI =====
+  if (editingData?.realisasi) {
+    const val = editingData.realisasi;
+
+    if (val.includes(" - ")) {
+      const [a, b] = val.split(" - ");
+      setRealisasiRange([
+        parseDDMMYYYYToDate(a),
+        parseDDMMYYYYToDate(b),
+      ]);
+    } else {
+      setRealisasiRange([parseDDMMYYYYToDate(val), null]);
+    }
+  } else {
+    setRealisasiRange([null, null]);
+  }
+}, [
+  editingData?.tanggal_estimasi_full,
+  editingData?.realisasi,
+]);
+
 
 
 const statusKeyMap: Record<string, string> = {
@@ -5815,6 +5929,7 @@ const newDataList = dataList.map((d) =>
   isClearable
   dateFormat="dd/MM/yyyy"
   placeholderText="Filter Tanggal"
+
   className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm 
              focus:ring-2 focus:ring-blue-400 focus:outline-none transition w-[220px]"
 
@@ -6068,7 +6183,8 @@ paginatedUpdatePlanData.map((d, i) => (
 
       <div className="w-[180px] px-3 py-2 bg-gray-100 rounded-xl border border-gray-200 shadow-sm text-center">
         <span className="text-sm font-medium text-gray-800">
-          {formatDateDisplay(d.tanggal_estimasi_full)}
+          {formatToDDMMYYYYDisplay(d.tanggal_estimasi_full)}
+
         </span>
       </div>
     </div>
@@ -6084,7 +6200,7 @@ paginatedUpdatePlanData.map((d, i) => (
     <div className="flex items-center justify-center w-full">
       <div className="w-[180px] px-3 py-2 bg-gray-100 rounded-xl border border-gray-200 shadow-sm text-center">
         <span className="text-sm font-medium text-gray-800">
-          {formatDateDisplay(d.tanggal_realisasi_full)}
+{formatToDDMMYYYYDisplay(d.tanggal_realisasi_full)}
         </span>
       </div>
     </div>
@@ -6421,72 +6537,78 @@ onClick={() => {
 
        
 
-     
+  {/* ====================== */}
+  {/*   TANGGAL ESTIMASI     */}
+  {/* ====================== */}
+  <div>
+    <label className="font-semibold text-blue-700">Tanggal Estimasi</label>
+    <DatePicker
+      selectsRange
+      startDate={estimasiRange[0]}
+      endDate={estimasiRange[1]}
+      onChange={(update) => {
+        const [start, end] = update as [Date | null, Date | null];
+        setEstimasiRange([start, end]);
 
-{/* Tanggal Estimasi Awal */}
-<div>
-  <label className="font-semibold text-blue-700">Tanggal Estimasi Awal</label>
-  <input
-    type="date"
-    value={editingData.tanggalAwal || ""}
-   onChange={(e) => {
-  const newDate = e.target.value;
-  const dateObj = new Date(newDate);
+        setEditingData({
+          ...editingData,
+          tanggal_estimasi_full:
+            start && end
+              ? `${formatToDDMMYYYY(start)} - ${formatToDDMMYYYY(end)}`
+              : start
+              ? formatToDDMMYYYY(start)
+              : "",
+        });
+      }}
+      dateFormat="dd/MM/yyyy"
+      placeholderText="Pilih rentang tanggal"
+      isClearable
+      className="w-full border border-blue-300 p-2 rounded-lg"
+    />
+  </div>
 
-  // safety check
-  if (!editingData.bulan || !editingData.tahun) {
-    setEditingData({
-      ...editingData,
-      tanggalAwal: newDate,
-    });
-    return;
-  }
+  {/* Minggu */}
+  <div>
+    <label className="font-semibold text-blue-700">Minggu (otomatis)</label>
+    <input
+      type="text"
+      value={editingData.minggu || ""}
+      disabled
+      className="w-full border border-blue-300 p-2 rounded-lg bg-gray-100"
+    />
+  </div>
 
-  const week = getWeekOfMonth(
-    dateObj.getDate(),     // day
-    editingData.bulan,     // nama bulan (JANUARI, dst)
-    editingData.tahun      // tahun
-  );
+  {/* ====================== */}
+  {/*   TANGGAL REALISASI    */}
+  {/* ====================== */}
+  <div>
+    <label className="font-semibold text-blue-700">Tanggal Realisasi</label>
+    <DatePicker
+      selectsRange
+      startDate={realisasiRange[0]}
+      endDate={realisasiRange[1]}
+      onChange={(update) => {
+        const [start, end] = update as [Date | null, Date | null];
+        setRealisasiRange([start, end]);
 
-  setEditingData({
-    ...editingData,
-    tanggalAwal: newDate,
-    minggu: week, // I – V
-  });
-}}
+        setEditingData({
+          ...editingData,
+          realisasi:
+            start && end
+              ? `${formatToDDMMYYYY(start)} - ${formatToDDMMYYYY(end)}`
+              : start
+              ? formatToDDMMYYYY(start)
+              : "",
+        });
+      }}
+      dateFormat="dd/MM/yyyy"
+      placeholderText="Pilih rentang tanggal"
+      isClearable
+      className="w-full border border-blue-300 p-2 rounded-lg"
+    />
+  </div>
 
-    className="w-full border border-blue-300 p-2 rounded-lg"
-  />
-</div>
-
-
-     {/* Tanggal Estimasi Akhir */}
-<div>
-  <label className="font-semibold text-blue-700">Tanggal Estimasi Akhir</label>
-  <input
-    type="date"
-    value={editingData.tanggalAkhir || ""}
-    onChange={(e) =>
-      setEditingData({
-        ...editingData,
-        tanggalAkhir: e.target.value,
-      })
-    }
-    className="w-full border border-blue-300 p-2 rounded-lg"
-  />
-</div>
-
-
-        {/* Minggu (otomatis) */}
-        <div>
-          <label className="font-semibold text-blue-700">Minggu (otomatis)</label>
-          <input
-            type="text"
-            value={editingData.minggu || ""}
-            disabled
-            className="w-full border border-blue-300 p-2 rounded-lg bg-gray-100"
-          />
-        </div>
+  <div /> {/* spacer biar rapi */}
 
        {/* PIC CHECKBOX */}
 <div className="col-span-2">
@@ -6732,42 +6854,8 @@ onClick={() => {
           />
         </div>
 
-        {/* TANGGAL REALISASI */}
-<div>
-  <label className="font-semibold text-blue-700">Realisasi Awal</label>
-  <input
-    type="date"
-    value={splitRealisasi(editingData.realisasi).awal}
-    onChange={(e) => {
-      const awal = e.target.value;
-      const { akhir } = splitRealisasi(editingData.realisasi);
 
-      setEditingData({
-        ...editingData,
-        realisasi: awal && akhir ? `${awal} - ${akhir}` : awal,
-      });
-    }}
-    className="w-full border border-blue-300 p-2 rounded-lg"
-  />
-</div>
 
-<div>
-  <label className="font-semibold text-blue-700">Realisasi Akhir</label>
-  <input
-    type="date"
-    value={splitRealisasi(editingData.realisasi).akhir}
-    onChange={(e) => {
-      const akhir = e.target.value;
-      const { awal } = splitRealisasi(editingData.realisasi);
-
-      setEditingData({
-        ...editingData,
-        realisasi: awal && akhir ? `${awal} - ${akhir}` : akhir,
-      });
-    }}
-    className="w-full border border-blue-300 p-2 rounded-lg"
-  />
-</div>
 
 
         {/* NO LAPORAN */}
