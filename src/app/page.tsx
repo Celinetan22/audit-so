@@ -682,16 +682,16 @@ const [filterStartDate, filterEndDate] = filterDateRange;
 const parseDDMMYYYYToDate = (val?: string | null) => {
   if (!val) return null;
 
-  // kalau range ambil tanggal pertama
-  const first = val.split(" - ")[0].trim();
+  const first = val.split(" - ")[0]?.trim();
+  if (!first) return null;
 
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(first)) {
-    const [d, m, y] = first.split("/");
-    return new Date(Number(y), Number(m) - 1, Number(d));
-  }
+  const match = first.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return null;
 
-  return null;
+  const [, d, m, y] = match;
+  return new Date(Number(y), Number(m) - 1, Number(d));
 };
+
 
 
   const [modernOptions, setModernOptions] = useState<{ id: number; name: string }[]>([]);
@@ -2491,29 +2491,67 @@ const parseDate = (str: string): Date | null => {
   return new Date(year, month - 1, day);
 };
 
-{/* range hari*/}
+// hitung hari dari estimasi → realisasi
+const getDurasiEstimasiKeRealisasi = (
+  estimasi?: string | null,
+  realisasi?: string | null
+) => {
+  if (!estimasi || !realisasi) return null;
+
+  // ===== ESTIMASI: ambil tanggal AWAL =====
+  const estimasiAwal = estimasi.includes(" - ")
+    ? estimasi.split(" - ")[0].trim()
+    : estimasi.trim();
+
+  // ===== REALISASI: ambil tanggal AKHIR =====
+  const realisasiAkhir = realisasi.includes(" - ")
+    ? realisasi.split(" - ")[1].trim()
+    : realisasi.trim();
+
+  const startDate = parseDDMMYYYYToDate(estimasiAwal);
+  const endDate = parseDDMMYYYYToDate(realisasiAkhir);
+
+  if (!startDate || !endDate) return null;
+
+  const diffMs = endDate.getTime() - startDate.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  return diffDays + 1; // inklusif
+};
+
+const parseDDMMYYYY = (val?: string | null): Date | null => {
+  if (!val) return null;
+
+  const match = val.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return null;
+
+  const [, d, m, y] = match;
+  return new Date(Number(y), Number(m) - 1, Number(d));
+};
+
+
+
 const getRealisasiRangeDays = (fullDate?: string | null) => {
   if (!fullDate) return null;
 
   const clean = fullDate.trim();
 
-  // CASE 1: Single date → return 1
-  if (!clean.includes("-")) {
-    const d = clean.trim();
-    const parsed = parseDate(d);
-    return parsed ? 1 : null;
+  // ===== SINGLE DATE =====
+  if (!clean.includes(" - ")) {
+    const d = parseDDMMYYYY(clean);
+    return d ? 1 : null;
   }
 
-  // CASE 2: Range → "22/01/2025 - 24/01/2025"
-  const [startStr, endStr] = clean.split("-").map(s => s.trim());
+  // ===== RANGE DATE =====
+  const [startStr, endStr] = clean.split(" - ").map(s => s.trim());
 
-  const startDate = parseDate(startStr);
-  const endDate = parseDate(endStr);
+  const startDate = parseDDMMYYYY(startStr);
+  const endDate = parseDDMMYYYY(endStr);
 
   if (!startDate || !endDate) return null;
 
   const diffMs = endDate.getTime() - startDate.getTime();
-  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
   return diffDays + 1; // termasuk hari pertama
 };
@@ -6032,9 +6070,7 @@ const newDataList = dataList.map((d) =>
 
            <th className="border border-gray-200 p-2">Minggu</th>
        {/* 🌟 KOLUM BARU: RANGE HARI */}
-<th className="border border-gray-200 p-2 bg-yellow-50 font-medium">
-  Range Hari
-</th>
+
 
 
 
@@ -6175,12 +6211,8 @@ paginatedUpdatePlanData.map((d, i) => (
         </td>
 
 
-{/* Range Hari */}
-<td className="p-2 border border-gray-300 bg-yellow-50 font-semibold">
-  {getRealisasiRangeDays(d.tanggal_realisasi_full)
-    ? `${getRealisasiRangeDays(d.tanggal_realisasi_full)} hari`
-    : "-"}
-</td>
+
+
 
 
 
