@@ -5178,6 +5178,45 @@ onClick={(data: any) => {
       {/* === ISI FORM === */}
       <div className="px-6 pb-6 pt-2">
 
+{/* === PILIH TEAM === */}
+<div className="mb-4">
+  <label className="block text-sm font-semibold text-slate-800 mb-2">
+    PIC<span className="text-red-500 ml-1">*</span>
+  </label>
+
+  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 bg-white p-3 rounded-xl border border-slate-200">
+    {teamOptions.map((t) => (
+      <label
+        key={t}
+        className="flex items-center gap-2 text-sm text-slate-700"
+      >
+        <input
+          type="checkbox"
+          value={t}
+          checked={formData.team.includes(t)}
+          onChange={(e) => {
+            const updated = [...formList];
+            const { value, checked } = e.target;
+
+            let newTeams = [...formData.team];
+            if (checked) {
+              if (!newTeams.includes(value)) newTeams.push(value);
+            } else {
+              newTeams = newTeams.filter((v) => v !== value);
+            }
+
+            updated[index].team = newTeams;
+            setFormList(updated);
+          }}
+          className="accent-blue-600 w-4 h-4"
+        />
+        {t}
+      </label>
+    ))}
+  </div>
+</div>
+
+
 {/* === PILIH PIC === */}
 <div className="mb-4">
   <label className="block text-sm font-semibold text-slate-800 mb-2">
@@ -6326,7 +6365,7 @@ paginatedUpdatePlanData.map((d, i) => (
       setActivePage("uploadReport");
     }}
     className={`px-3 py-1.5 rounded-lg text-sm text-white shadow
-      ${
+      
         reportFilesMap[d.no_laporan ?? ""]
           ? "bg-green-600 hover:bg-green-700"
           : "bg-blue-600 hover:bg-blue-700"
