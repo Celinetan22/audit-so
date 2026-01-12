@@ -5836,12 +5836,15 @@ const newDataList = dataList.map((d) =>
   onChange={(e) => setSelectedYearUpdatePlan(e.target.value)}
   className="border rounded px-2 py-1"
 >
+  <option value="">Semua Tahun</option>
+
   {yearOptions.map((year) => (
     <option key={year} value={year}>
       {year}
     </option>
   ))}
 </select>
+
 
 
 
