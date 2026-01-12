@@ -6492,79 +6492,92 @@ onClick={() => {
       <div className="grid grid-cols-2 gap-5 mt-5">
 
        
+{/* ====================== */}
+{/*        TANGGAL         */}
+{/* ====================== */}
+<div className="col-span-2">
+  <div className="border rounded-xl p-4 bg-slate-50">
+    <h3 className="text-sm font-bold text-slate-700 mb-4">
+      Tanggal
+    </h3>
 
-  {/* ====================== */}
-  {/*   TANGGAL ESTIMASI     */}
-  {/* ====================== */}
-  <div>
-    <label className="font-semibold text-blue-700">Tanggal Estimasi</label>
-    <DatePicker
-      selectsRange
-      startDate={estimasiRange[0]}
-      endDate={estimasiRange[1]}
-      onChange={(update) => {
-        const [start, end] = update as [Date | null, Date | null];
-        setEstimasiRange([start, end]);
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Tanggal Estimasi */}
+      <div>
+        <label className="text-sm font-medium text-slate-700">
+          Tanggal Estimasi
+        </label>
+        <DatePicker
+          selectsRange
+          startDate={estimasiRange[0]}
+          endDate={estimasiRange[1]}
+          onChange={(update) => {
+            const [start, end] = update as [Date | null, Date | null];
+            setEstimasiRange([start, end]);
 
-        setEditingData({
-          ...editingData,
-          tanggal_estimasi_full:
-            start && end
-              ? `${formatToDDMMYYYY(start)} - ${formatToDDMMYYYY(end)}`
-              : start
-              ? formatToDDMMYYYY(start)
-              : "",
-        });
-      }}
-      dateFormat="dd/MM/yyyy"
-      placeholderText="Pilih rentang tanggal"
-      isClearable
-      className="w-full border border-blue-300 p-2 rounded-lg"
-    />
+            setEditingData({
+              ...editingData,
+              tanggal_estimasi_full:
+                start && end
+                  ? `${formatToDDMMYYYY(start)} - ${formatToDDMMYYYY(end)}`
+                  : start
+                  ? formatToDDMMYYYY(start)
+                  : "",
+            });
+          }}
+          dateFormat="dd/MM/yyyy"
+          placeholderText="Pilih rentang tanggal"
+          isClearable
+          className="w-full border border-slate-300 p-2 rounded-lg"
+        />
+      </div>
+
+      {/* Minggu */}
+      <div>
+        <label className="text-sm font-medium text-slate-700">
+          Minggu (otomatis)
+        </label>
+        <input
+          type="text"
+          value={editingData.minggu || ""}
+          disabled
+          className="w-full border border-slate-300 p-2 rounded-lg bg-slate-100 text-slate-600"
+        />
+      </div>
+
+      {/* Tanggal Realisasi */}
+      <div>
+        <label className="text-sm font-medium text-slate-700">
+          Tanggal Realisasi
+        </label>
+        <DatePicker
+          selectsRange
+          startDate={realisasiRange[0]}
+          endDate={realisasiRange[1]}
+          onChange={(update) => {
+            const [start, end] = update as [Date | null, Date | null];
+            setRealisasiRange([start, end]);
+
+            setEditingData({
+              ...editingData,
+              realisasi:
+                start && end
+                  ? `${formatToDDMMYYYY(start)} - ${formatToDDMMYYYY(end)}`
+                  : start
+                  ? formatToDDMMYYYY(start)
+                  : "",
+            });
+          }}
+          dateFormat="dd/MM/yyyy"
+          placeholderText="Pilih rentang tanggal"
+          isClearable
+          className="w-full border border-slate-300 p-2 rounded-lg"
+        />
+      </div>
+    </div>
   </div>
+</div>
 
-  {/* Minggu */}
-  <div>
-    <label className="font-semibold text-blue-700">Minggu (otomatis)</label>
-    <input
-      type="text"
-      value={editingData.minggu || ""}
-      disabled
-      className="w-full border border-blue-300 p-2 rounded-lg bg-gray-100"
-    />
-  </div>
-
-  {/* ====================== */}
-  {/*   TANGGAL REALISASI    */}
-  {/* ====================== */}
-  <div>
-    <label className="font-semibold text-blue-700">Tanggal Realisasi</label>
-    <DatePicker
-      selectsRange
-      startDate={realisasiRange[0]}
-      endDate={realisasiRange[1]}
-      onChange={(update) => {
-        const [start, end] = update as [Date | null, Date | null];
-        setRealisasiRange([start, end]);
-
-        setEditingData({
-          ...editingData,
-          realisasi:
-            start && end
-              ? `${formatToDDMMYYYY(start)} - ${formatToDDMMYYYY(end)}`
-              : start
-              ? formatToDDMMYYYY(start)
-              : "",
-        });
-      }}
-      dateFormat="dd/MM/yyyy"
-      placeholderText="Pilih rentang tanggal"
-      isClearable
-      className="w-full border border-blue-300 p-2 rounded-lg"
-    />
-  </div>
-
-  <div /> {/* spacer biar rapi */}
 
        {/* PIC CHECKBOX */}
 <div className="col-span-2">
@@ -6630,16 +6643,6 @@ onClick={() => {
               </label>
             ))}
           </div>
-
-          <input
-            type="text"
-            placeholder="Tambah PIC manual (pisahkan koma)"
-            value={editingData.customPic || ""}
-            onChange={(e) =>
-              setEditingData({ ...editingData, customPic: e.target.value })
-            }
-            className="w-full border border-blue-300 p-2 rounded-lg mt-2"
-          />
         </div>
 
         {/* Company */}
@@ -6659,144 +6662,226 @@ onClick={() => {
         {/*   AREA TEKS (kanan kiri)   */}
         {/* ========================== */}
 
-        <div>
-          <label className="font-semibold text-blue-700">Jabodetabek</label>
-          <textarea
-            value={editingData.jabodetabek || ""}
-            onChange={(e) =>
-              setEditingData({ ...editingData, jabodetabek: e.target.value })
-            }
-            className="w-full border border-blue-300 p-2 rounded-lg min-h-[80px]"
-          />
-        </div>
+{/* ========================== */}
+{/*          AREA             */}
+{/* ========================== */}
+<div className="col-span-2 mt-4">
+  <div className="border rounded-xl p-4 bg-slate-50">
+    <h3 className="text-sm font-bold text-slate-700 mb-4">
+      Area
+    </h3>
 
-        <div>
-          <label className="font-semibold text-blue-700">Luar Jabodetabek</label>
-          <textarea
-            value={editingData.luarJabodetabek || ""}
-            onChange={(e) =>
-              setEditingData({
-                ...editingData,
-                luarJabodetabek: e.target.value,
-              })
-            }
-            className="w-full border border-blue-300 p-2 rounded-lg min-h-[80px]"
-          />
-        </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Jabodetabek */}
+      <div>
+        <label className="text-sm font-medium text-slate-700">
+          Jabodetabek
+        </label>
+        <select
+          value={editingData.jabodetabek || ""}
+          onChange={(e) =>
+            setEditingData({ ...editingData, jabodetabek: e.target.value })
+          }
+          className="w-full border border-slate-300 p-2 rounded-lg"
+        >
+          <option value="">-- Pilih Jabodetabek --</option>
+          {jabodetabekOptions.map((j) => (
+            <option key={j.id} value={j.name}>
+              {j.name}
+            </option>
+          ))}
+        </select>
+      </div>
 
-{/* CABANG (Parent) */}
-<div>
-  <label className="font-semibold text-blue-700">Cabang</label>
+      {/* Luar Jabodetabek */}
+      <div>
+        <label className="text-sm font-medium text-slate-700">
+          Luar Jabodetabek
+        </label>
+        <select
+          value={editingData.luarJabodetabek || ""}
+          onChange={(e) =>
+            setEditingData({
+              ...editingData,
+              luarJabodetabek: e.target.value,
+            })
+          }
+          className="w-full border border-slate-300 p-2 rounded-lg"
+        >
+          <option value="">-- Pilih Luar Jabodetabek --</option>
+          {luarJaboOptions.map((l) => (
+            <option key={l.id} value={l.name}>
+              {l.name}
+            </option>
+          ))}
+        </select>
+      </div>
 
-  <select
-    value={editingData.cabang || ""}
-    onChange={(e) => {
-      const newCabang = e.target.value;
+      {/* Cabang */}
+      <div>
+        <label className="text-sm font-medium text-slate-700">
+          Cabang
+        </label>
+        <select
+          value={editingData.cabang || ""}
+          onChange={(e) =>
+            setEditingData({
+              ...editingData,
+              cabang: e.target.value,
+              anakCabang: "",
+            })
+          }
+          className="w-full border border-slate-300 p-2 rounded-lg"
+        >
+          <option value="">-- Pilih Cabang --</option>
+          {cabangOptions
+            .filter((c) => c.parent_id === null)
+            .map((c) => (
+              <option key={c.id} value={c.name}>
+                {c.name}
+              </option>
+            ))}
+        </select>
+      </div>
 
-      // reset anak cabang saat parent berubah
-      setEditingData({
-        ...editingData,
-        cabang: newCabang,
-        anakCabang: "",
-      });
-    }}
-    className="w-full border border-blue-300 p-2 rounded-lg"
-  >
-    <option value="">-- Pilih Cabang --</option>
-
-    {cabangOptions
-      .filter((c) => c.parent_id === null) // hanya cabang utama
-      .map((parent) => (
-        <option key={parent.id} value={parent.name}>
-          {parent.name}
-        </option>
-      ))}
-  </select>
-</div>
-
-{/* ANAK CABANG */}
-<div>
-  <label className="font-semibold text-blue-700">Anak Cabang</label>
-
-  <select
-    value={editingData.anakCabang || ""}
-    onChange={(e) =>
-      setEditingData({
-        ...editingData,
-        anakCabang: e.target.value,
-      })
-    }
-    className="w-full border border-blue-300 p-2 rounded-lg"
-    disabled={!editingData.cabang} // disable jika parent belum dipilih
-  >
-    <option value="">-- Pilih Anak Cabang --</option>
-
-    {cabangOptions
-      .filter(
-        (c) =>
-          c.parent_id ===
-          cabangOptions.find((p) => p.name === editingData.cabang)?.id
-      )
-      .map((anak) => (
-        <option key={anak.id} value={anak.name}>
-          {anak.name}
-        </option>
-      ))}
-  </select>
-</div>
-
-
-        <div>
-          <label className="font-semibold text-blue-700">Warehouse</label>
-          <textarea
-            value={editingData.warehouse || ""}
-            onChange={(e) =>
-              setEditingData({ ...editingData, warehouse: e.target.value })
-            }
-            className="w-full border border-blue-300 p-2 rounded-lg min-h-[80px]"
-          />
-        </div>
-
-        <div>
-          <label className="font-semibold text-blue-700">Tradisional</label>
-          <textarea
-            value={editingData.tradisional || ""}
-            onChange={(e) =>
-              setEditingData({ ...editingData, tradisional: e.target.value })
-            }
-            className="w-full border border-blue-300 p-2 rounded-lg min-h-[80px]"
-          />
-        </div>
-<div>
-  <label className="font-semibold text-blue-700">Modern</label>
-  <select
-    value={editingData.modern || ""}
-    onChange={(e) =>
-      setEditingData({ ...editingData, modern: e.target.value })
-    }
-    className="w-full border border-blue-300 p-2 rounded-lg"
-  >
-    <option value="">-- Pilih Modern --</option>
-
-    {modernOptions.map((m) => (
-      <option key={m.id} value={m.name}>
-        {m.name}
-      </option>
-    ))}
-  </select>
+      {/* Anak Cabang */}
+      <div>
+        <label className="text-sm font-medium text-slate-700">
+          Anak Cabang
+        </label>
+        <select
+          value={editingData.anakCabang || ""}
+          disabled={!editingData.cabang}
+          onChange={(e) =>
+            setEditingData({
+              ...editingData,
+              anakCabang: e.target.value,
+            })
+          }
+          className="w-full border border-slate-300 p-2 rounded-lg disabled:bg-slate-100"
+        >
+          <option value="">-- Pilih Anak Cabang --</option>
+          {cabangOptions
+            .filter(
+              (c) =>
+                c.parent_id ===
+                cabangOptions.find(
+                  (p) => p.name === editingData.cabang
+                )?.id
+            )
+            .map((anak) => (
+              <option key={anak.id} value={anak.name}>
+                {anak.name}
+              </option>
+            ))}
+        </select>
+      </div>
+    </div>
+  </div>
 </div>
 
 
-        <div>
-          <label className="font-semibold text-blue-700">WHZ</label>
-          <textarea
-            value={editingData.whz || ""}
-            onChange={(e) =>
-              setEditingData({ ...editingData, whz: e.target.value })
-            }
-            className="w-full border border-blue-300 p-2 rounded-lg min-h-[80px]"
-          />
-        </div>
+{/* ========================== */}
+{/*        CHANNEL             */}
+{/* ========================== */}
+<div className="col-span-2 mt-4">
+  <div className="border rounded-xl p-4 bg-slate-50">
+    <h3 className="text-sm font-bold text-slate-700 mb-4">
+      Channel
+    </h3>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Warehouse */}
+      <div>
+        <label className="text-sm font-medium text-slate-700">
+          Warehouse
+        </label>
+        <select
+          value={editingData.warehouse || ""}
+          onChange={(e) =>
+            setEditingData({ ...editingData, warehouse: e.target.value })
+          }
+          className="w-full border border-slate-300 p-2 rounded-lg"
+        >
+          <option value="">-- Pilih Warehouse --</option>
+          {warehouseOptions.map((w) => (
+            <option key={w.id} value={w.name}>
+              {w.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Tradisional */}
+      <div>
+        <label className="text-sm font-medium text-slate-700">
+          Tradisional
+        </label>
+        <select
+          value={editingData.tradisional || ""}
+          onChange={(e) =>
+            setEditingData({
+              ...editingData,
+              tradisional: e.target.value,
+            })
+          }
+          className="w-full border border-slate-300 p-2 rounded-lg"
+        >
+          <option value="">-- Pilih Tradisional --</option>
+          {tradisionalOptions.map((t) => (
+            <option key={t.id} value={t.name}>
+              {t.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Modern */}
+      <div>
+        <label className="text-sm font-medium text-slate-700">
+          Modern
+        </label>
+        <select
+          value={editingData.modern || ""}
+          onChange={(e) =>
+            setEditingData({ ...editingData, modern: e.target.value })
+          }
+          className="w-full border border-slate-300 p-2 rounded-lg"
+        >
+          <option value="">-- Pilih Modern --</option>
+          {modernOptions.map((m) => (
+            <option key={m.id} value={m.name}>
+              {m.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* WHZ */}
+      <div>
+        <label className="text-sm font-medium text-slate-700">
+          WH - Z
+        </label>
+        <select
+          value={editingData.whz || ""}
+          onChange={(e) =>
+            setEditingData({ ...editingData, whz: e.target.value })
+          }
+          className="w-full border border-slate-300 p-2 rounded-lg"
+        >
+          <option value="">-- Pilih WH - Z --</option>
+          {serviceCenterOptions.map((s) => (
+            <option key={s.id} value={s.name}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+
 
         {/* DESKRIPSI */}
         <div className="col-span-2">
