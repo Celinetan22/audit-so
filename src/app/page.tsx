@@ -1799,40 +1799,34 @@ const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
 };
 
 
-const handleDeleteFile = async (rowId: number, fileUrl: string) => {
+const handleDeleteFile = async (
+  noLaporan: string,
+  fileUrl: string
+) => {
   try {
-    // Ambil path relatif dari URL publik
     const url = new URL(fileUrl);
     const path = url.pathname.split("/storage/v1/object/public/report-plan/")[1];
 
-    if (!path) {
-      toast.error("❌ Gagal ambil path file");
-      return;
-    }
+    if (!path) return;
 
-    // Hapus dari storage (pakai path lengkap termasuk "reports/")
-    const { error: storageError } = await supabase.storage
-      .from("report-plan")
-      .remove([path]);
+    // hapus file di storage
+    await supabase.storage.from("report-plan").remove([path]);
 
-    if (storageError) throw storageError;
-
-    // Hapus dari tabel
-    const { error: dbError } = await supabase
+    // hapus record DB (🔥 pakai no_laporan)
+    await supabase
       .from("report_files")
       .delete()
-      .eq("report_id", rowId)
+      .eq("no_laporan", noLaporan)
       .eq("file_url", fileUrl);
 
-    if (dbError) throw dbError;
-
-    toast.success("File berhasil dihapus!");
-    setFileHistory((prev) => prev.filter((f) => f.file_url !== fileUrl));
+    setFileHistory((prev) =>
+      prev.filter((f) => f.file_url !== fileUrl)
+    );
   } catch (err) {
-    console.error("Unexpected error:", err);
-    toast.error("❌ Terjadi error saat hapus file");
+    console.error(err);
   }
 };
+
 
 const handleTeamCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   if (!editData) return;
@@ -1866,50 +1860,37 @@ const handleTeamCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 
 const [fileHistory, setFileHistory] = useState<any[]>([]);
 
+
+
 const fetchFiles = async () => {
-  // 🔒 Cek dulu apakah approval sudah dipilih
-  if (!selectedApproval?.id) {
-    console.warn("⚠️ Tidak ada selectedApproval.id, fetchFiles dibatalkan");
+  if (!selectedApproval?.no_laporan) return;
+
+  console.log("📂 Fetch file for:", selectedApproval.no_laporan);
+
+  const { data, error } = await supabase
+    .from("report_files")
+    .select("*")
+    .eq("no_laporan", selectedApproval.no_laporan)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("❌ Fetch files error:", error.message);
     return;
   }
 
-  try {
-    console.log("📂 Fetching file history untuk report_id:", selectedApproval.id);
-
-    // 🔹 Query data dari Supabase
-    const { data, error } = await supabase
-      .from("report_files")
-      .select("*") // cukup ambil semua kolom
-      .eq("report_id", selectedApproval.id)
-      .order("id", { ascending: false }); // pakai id, lebih aman dari created_at
-
-    // 🔹 Cek error Supabase
-    if (error) {
-      console.error("❌ Gagal fetch files:", error.message);
-      toast.error("Gagal mengambil history file");
-      return;
-    }
-
-    // 🔹 Update state
-    if (data && data.length > 0) {
-      console.log(`✅ Ditemukan ${data.length} file`);
-      setFileHistory(data);
-    } else {
-      console.log("ℹ️ Tidak ada file ditemukan untuk report_id ini");
-      setFileHistory([]);
-    }
-  } catch (err) {
-    console.error("🚨 Error tak terduga saat fetchFiles:", err);
-    toast.error("Terjadi kesalahan saat memuat file");
-  }
+  console.log("✅ File history:", data);
+  setFileHistory(data || []);
 };
 
 
-useEffect(() => {
-  if (!selectedApproval?.id) return;
 
+
+
+useEffect(() => {
+  if (!selectedApproval?.no_laporan) return;
   fetchFiles();
-}, [selectedApproval]);
+}, [selectedApproval?.no_laporan]);
+
 
 const handleChange = (
   e: React.ChangeEvent<
@@ -3975,17 +3956,22 @@ useEffect(() => {
   const fetchReportFilesMap = async () => {
     const { data, error } = await supabase
       .from("report_files")
-      .select("report_id, file_url");
+      .select("no_laporan");
 
-    if (!error && data) {
-      const map: Record<string, boolean> = {};
-      data.forEach((f) => {
-        if (f.report_id) {
-          map[f.report_id] = true; // artinya report ini sudah ada file
-        }
-      });
-      setReportFilesMap(map);
+    if (error) {
+      console.error("❌ fetchReportFilesMap error:", error.message);
+      return;
     }
+
+    const map: Record<string, boolean> = {};
+
+    (data || []).forEach((f) => {
+      if (f.no_laporan) {
+        map[f.no_laporan] = true; // ✅ laporan ini punya file
+      }
+    });
+
+    setReportFilesMap(map);
   };
 
   fetchReportFilesMap();
@@ -4957,132 +4943,74 @@ onClick={(data: any) => {
 <form
   onSubmit={async (e) => {
     e.preventDefault();
-    if (!uploadedBy) {
-      toast.error("Field 'Diupload oleh' wajib diisi!");
-      return;
-    }
 
     try {
       let fileUrl: string | null = null;
 
-      // 1️⃣ Upload file ke Supabase Storage
+      // 1️⃣ Upload file
       if (selectedFile) {
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        const { data, error } = await supabase.storage
           .from("report-plan")
-          .upload(`reports/${Date.now()}_${selectedFile.name}`, selectedFile);
+          .upload(
+            `reports/${Date.now()}_${selectedFile.name}`,
+            selectedFile
+          );
 
-        if (uploadError) throw uploadError;
+        if (error) {
+          toast.error(error.message);
+          return;
+        }
 
         const { data: publicUrl } = supabase.storage
           .from("report-plan")
-          .getPublicUrl(uploadData.path);
+          .getPublicUrl(data.path);
 
         fileUrl = publicUrl.publicUrl;
       }
 
-      // 2️⃣ Simpan ke tabel report_files (history)
-      const { error: fileError } = await supabase.from("report_files").insert([
-        {
-          report_id: selectedApproval?.id,
-          report_name: reportName,
-          report_description: description,
-          uploaded_by: uploadedBy,
-          file_url: fileUrl,
-        },
-      ]);
+      // 2️⃣ Simpan file (TANPA report_id)
+      const { error: fileError } = await supabase
+        .from("report_files")
+        .insert([
+          {
+            report_name: reportName,
+            report_description: description,
+            file_url: fileUrl,
+          },
+        ]);
 
-      if (fileError) throw fileError;
+      if (fileError) {
+        console.error("❌ report_files error:", fileError);
+        toast.error(fileError.message);
+        return;
+      }
 
-      // 3️⃣ Update ke tabel audit_full
+      // 3️⃣ Update audit_full (pakai no_laporan langsung)
       const { error: auditError } = await supabase
         .from("audit_full")
         .update({
-          uploaded_by: uploadedBy,
           description,
           file_url: fileUrl,
         })
-        .eq("no_laporan", selectedApproval?.no_laporan);
+        .eq("no_laporan", reportName);
 
-      if (auditError) throw auditError;
-
-      // 4️⃣ Pastikan approval sudah ada (kalau belum → buat default)
-      if (selectedApproval?.id) {
-        const { data: existingApprovals, error: checkError } = await supabase
-          .from("approvals_status")
-          .select("id")
-          .eq("report_id", selectedApproval.id);
-
-        if (checkError)
-          console.error("❌ Gagal cek approvals:", checkError.message);
-
-        if (!existingApprovals?.length) {
-          const approvers = ["Aprilia", "NOVIE", "Andreas"];
-          const { error: createError } = await supabase
-            .from("approvals_status")
-            .insert(
-              approvers.map((name, index) => ({
-                report_id: selectedApproval.id,
-                step: index + 1,
-                user: name,
-                checked: false,
-                note: `Menunggu persetujuan ${name}`,
-                status: "Belum",
-                // 🆕 Tambahan: simpan deskripsi laporan di approval (biar tampil di status approval)
-                description: description,
-              }))
-            );
-
-          if (createError)
-            console.error(
-              "❌ Gagal membuat approval default:",
-              createError.message
-            );
-          else
-            console.log(
-              `✅ Approval default dibuat untuk laporan: ${selectedApproval.no_laporan}`
-            );
-        } else {
-          // 🆕 Kalau approval sudah ada, update description juga
-          await supabase
-            .from("approvals_status")
-            .update({ description })
-            .eq("report_id", selectedApproval.id);
-        }
+      if (auditError) {
+        toast.error(auditError.message);
+        return;
       }
 
-      // 5️⃣ Update state lokal (dataList)
-      setDataList((prev) =>
-        prev.map((d) =>
-          d.id === selectedApproval?.id
-            ? {
-                ...d,
-                report_name: selectedApproval?.no_laporan,
-                report_description: description,
-                uploaded_by: uploadedBy,
-                file_url: fileUrl,
-              }
-            : d
-        )
-      );
-
-      // 6️⃣ Refresh data history & approval
-      await fetchFiles();
-      await fetchApprovals?.();
-
-      // 7️⃣ Notifikasi dan reset form
-      toast.success("✅ Report berhasil disimpan dan masuk ke status approval!");
+      toast.success("✅ Report berhasil disimpan");
       setReportName("");
       setDescription("");
-      setUploadedBy("");
       setSelectedFile(null);
-      setShowSuccessPopup(true);
     } catch (err) {
-      console.error("Supabase insert error:", err);
+      console.error(err);
       toast.error("❌ Gagal simpan report");
     }
   }}
-  className="space-y-4 mt-6"
 >
+
+
 
 
  {/* No Laporan */}
@@ -6390,23 +6318,24 @@ paginatedUpdatePlanData.map((d, i) => (
         </td>
 
       
-        {/* Report */}
-        <td className="p-2 border border-gray-300">
-          <button
-            onClick={() => {
-              setSelectedApproval(d);
-              setActivePage("uploadReport");
-            }}
-            className={`px-3 py-1.5 rounded-lg text-sm text-white shadow
-              ${
-                reportFilesMap[d.id ?? ""]
-                  ? "bg-green-600 hover:bg-green-700"
-                  : "bg-blue-600 hover:bg-blue-700"
-              }`}
-          >
-            Report
-          </button>
-        </td>
+      {/* Report */}
+<td className="p-2 border border-gray-300">
+  <button
+    onClick={() => {
+      setSelectedApproval(d);
+      setActivePage("uploadReport");
+    }}
+    className={`px-3 py-1.5 rounded-lg text-sm text-white shadow
+      ${
+        reportFilesMap[d.no_laporan ?? ""]
+          ? "bg-green-600 hover:bg-green-700"
+          : "bg-blue-600 hover:bg-blue-700"
+      }`}
+  >
+    Report
+  </button>
+</td>
+
 
 <td className="p-2 border border-gray-300 text-center">
   <input
