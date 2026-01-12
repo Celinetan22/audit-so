@@ -5717,55 +5717,7 @@ onClick={(data: any) => {
       
       <div className="flex flex-wrap items-center gap-3">
     
-      {/* Tombol Refresh */}
-<button
-  onClick={async () => {
-    try {
-      toast("⏳ Refreshing data...");
-
-      // 1️⃣ Jalankan fetch data
-      await fetchDataUpdatePlan();
-
-      // 2️⃣ Ambil bulan dari dropdown
-      const bulan = selectedBulanUpdatePlan || ""; // misal: "MEI"
-      const year = new Date().getFullYear().toString().slice(-2);
-
-      // 3️⃣ Map nama bulan ke nomor
-      const monthMap: Record<string, string> = {
-        JANUARI: "01",
-        FEBRUARI: "02",
-        MARET: "03",
-        APRIL: "04",
-        MEI: "05",
-        JUNI: "06",
-        JULI: "07",
-        AGUSTUS: "08",
-        SEPTEMBER: "09",
-        OKTOBER: "10",
-        NOVEMBER: "11",
-        DESEMBER: "12",
-      };
-
-      const monthNum = monthMap[bulan.toUpperCase()] || String(new Date().getMonth() + 1).padStart(2, "0");
-
-      // 4️⃣ Jalankan renumber hanya untuk bulan yang dipilih
-      await renumberNoLaporan("SOV", year, monthNum);
-      await renumberNoLaporan("SONV", year, monthNum);
-
-      toast.success(`✅ Laporan bulan ${bulan || "aktif"} berhasil dirapikan`);
-    } catch (err) {
-      console.error("❌ Refresh error:", err);
-      toast.error("Gagal refresh data / renumber!");
-    }
-  }}
-  className="flex items-center gap-2 bg-blue-500/90 hover:bg-blue-600 
-             text-white px-4 py-2 rounded-xl text-sm font-medium shadow-sm 
-             transition-all duration-200 active:scale-[0.98]"
->
-  <RefreshCcw className="w-4 h-4" />
-  Refresh
-</button>
-
+      
 
 
  {/* Tombol Export Excel */}
