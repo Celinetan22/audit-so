@@ -514,9 +514,14 @@ async function generateNoLaporanRekon(
   // ===============================
   //     HITUNG NOMOR URUT
   // ===============================
-  const numbers = (data || [])
-    .map((d) => Number(d.no_laporan?.split("/")?.[3]))
-    .filter((n) => !isNaN(n));
+const numbers = (data || [])
+  .map((d) => {
+    const lastPart = d.no_laporan?.split("/")?.[3]; // "03B", "004", dll
+    const match = lastPart?.match(/^(\d+)/); // ambil angka depan
+    return match ? Number(match[1]) : null;
+  })
+  .filter((n): n is number => n !== null);
+
 
   const nextNumber = String(
     (numbers.length ? Math.max(...numbers) : 0) + 1
@@ -2974,6 +2979,27 @@ const finalTeam = Array.isArray(data.team)
   ? data.team
   : oldData.team || [];
 
+
+// ============================
+// NO LAPORAN (ANGKA TETAP, HURUF BOLEH)
+// ============================
+const newNoLaporan = (data.no_laporan || "").trim();
+
+if (newNoLaporan) {
+  const duplicate = dataList.find(
+    (d) =>
+      d.id !== data.id &&
+      d.no_laporan?.toUpperCase() === newNoLaporan.toUpperCase()
+  );
+
+  if (duplicate) {
+    toast.error("❌ No Laporan sudah digunakan!");
+    toast.dismiss(loading);
+    return;
+  }
+}
+
+
   // ============================
   // Build Data untuk DB
   // ============================
@@ -3001,7 +3027,7 @@ const finalTeam = Array.isArray(data.team)
     description: data.description ?? oldData.description,
     status: data.status ?? oldData.status,
     company: data.company ?? oldData.company,
-
+   no_laporan: data.no_laporan ?? oldData.no_laporan,
     edited_at: new Date().toISOString(),
   };
 
@@ -3018,7 +3044,7 @@ setDataList((prev) =>
       ? {
           ...d,
           ...updatedDataForDB,
-
+          no_laporan: updatedDataForDB.no_laporan,
           tanggal: finalEstimasiUI || d.tanggal || "",
           realisasi: finalRealisasiUI || d.realisasi || "",
 
@@ -6818,6 +6844,7 @@ onClick={() => {
           />
         </div>
 
+       
        
       </div>
 
