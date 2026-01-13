@@ -1526,80 +1526,73 @@ function getDaysInMonth(monthName: string, year: number): number {
 }
 
 
-useEffect(() => {
-  const fetchData = async () => {
-    const { data, error } = await supabase
+const fetchData = async () => {
+  const { data, error } = await supabase
+    .from("audit_full")
+    .select("*")
+    .order("id", { ascending: false });
+
+  if (error) {
+    console.error("❌ Gagal fetch data:", error.message);
+    return;
+  }
+
+  if (!data) return;
+
+  // 🔹 Normalisasi nama kolom
+  const normalized = data.map((item: any) => ({
+    ...item,
+
+    luarJabodetabek: item.luar_jabodetabek ?? "",
+    anakCabang: item.anak_cabang ?? "",
+    noLaporan: item.no_laporan ?? "",
+    jenisData: item.jenis_data ?? "",
+
+    tanggal_realisasi_full:
+      item.tanggal_realisasi_full ??
+      item.tanggal_realisasi ??
+      null,
+  }));
+
+  setDataList(normalized);
+
+  // ===============================
+  // 🔥 AUTO SYNC STATUS
+  // ===============================
+  const todayNum = new Date().getDate();
+  const currentMonthStr = new Date()
+    .toLocaleString("id-ID", { month: "long" })
+    .toUpperCase();
+
+  const needUpdate = normalized.filter(
+    (d) =>
+      getEffectiveStatus(d, todayNum, currentMonthStr) === "On Progress" &&
+      d.status !== "On Progress"
+  );
+
+  if (needUpdate.length > 0) {
+    const idsToUpdate = needUpdate.map((d) => d.id);
+
+    const { error: updateError } = await supabase
       .from("audit_full")
-      .select("*")
-      .order("id", { ascending: false });
+      .update({ status: "On Progress" })
+      .in("id", idsToUpdate);
 
-    if (error) {
-      console.error("❌ Gagal fetch data:", error.message);
-      return;
-    }
-
-    if (data) {
-      // 🔹 Normalisasi nama kolom supaya konsisten di frontend
-const normalized = data.map((item: any) => ({
-  ...item,
-
-  // existing
-  luarJabodetabek: item.luar_jabodetabek ?? "",
-  anakCabang: item.anak_cabang ?? "",
-  noLaporan: item.no_laporan ?? "",
-  jenisData: item.jenis_data ?? "",
-
-  // 🔥 TAMBAHKAN INI
-  tanggal_realisasi_full:
-    item.tanggal_realisasi_full ??
-    item.tanggal_realisasi ??
-    null,
-}));
-
-
-      setDataList(normalized);
-
-      // ✅ Tambahkan logika sinkronisasi status otomatis
-      const todayNum = new Date().getDate();
-      const currentMonthStr = new Date()
-        .toLocaleString("id-ID", { month: "long" })
-        .toUpperCase();
-
-      // 🔍 Cari data yang seharusnya On Progress tapi belum diupdate
-      const needUpdate = normalized.filter(
-        (d) =>
-          getEffectiveStatus(d, todayNum, currentMonthStr) === "On Progress" &&
-          d.status !== "On Progress"
+    if (!updateError) {
+      setDataList((prev) =>
+        prev.map((row) =>
+          idsToUpdate.includes(row.id)
+            ? { ...row, status: "On Progress" }
+            : row
+        )
       );
-
-      if (needUpdate.length > 0) {
-        const idsToUpdate = needUpdate.map((d) => d.id);
-
-        // 🔥 Update batch di Supabase
-        const { error: updateError } = await supabase
-          .from("audit_full")
-          .update({ status: "On Progress" })
-          .in("id", idsToUpdate);
-
-        if (updateError) {
-          console.error("❌ Gagal update otomatis:", updateError.message);
-        } else {
-          console.log(`✅ ${idsToUpdate.length} data diupdate ke "On Progress"`);
-
-          // 🔄 Update state React juga biar langsung tampil
-          setDataList((prev) =>
-            prev.map((row) =>
-              idsToUpdate.includes(row.id)
-                ? { ...row, status: "On Progress" }
-                : row
-            )
-          );
-        }
-      }
     }
-  };
+  }
+};
 
-  fetchData();
+useEffect(() => {
+fetchData();
+
 
 
   
@@ -2172,6 +2165,9 @@ const handleApprovalUpdate = async (
   }
 };
  
+// 🔥 Counter lokal supaya multi submit aman
+const noCounterMap: Record<string, number> = {};
+
 
 const handleSubmitAll = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -2202,74 +2198,49 @@ const handleSubmitAll = async (e: React.FormEvent) => {
       // ===============================
       //     BULAN & TAHUN (FIX GLOBAL)
       // ===============================
-      const yearShort = form.tahun.slice(2);
+const yearShort = form.tahun.slice(2);
+const monthIndex = monthOrder.findIndex(
+  (b) => b.toLowerCase() === form.bulan.toLowerCase()
+);
 
-      const monthIndex = monthOrder.findIndex(
-        (b) => b.toLowerCase() === form.bulan.toLowerCase()
-      );
+const monthNum = String(monthIndex + 1).padStart(2, "0");
+   // ===============================
+//     GENERATE NO LAPORAN (FIX)
+// ===============================
+let noLaporan = "";
 
-      if (monthIndex === -1) {
-        toast.error(`Bulan tidak valid: ${form.bulan}`);
-        continue;
-      }
+// 🔥 PREFIX
+const prefix =
+  form.jenisData === "rekon"
+    ? "RN"
+    : form.jenisData === "visit"
+    ? "SOV"
+    : "SONV";
 
-      const monthNum = String(monthIndex + 1).padStart(2, "0");
+// 🔥 KEY UNIK UNTUK COUNTER
+const counterKey = `${prefix}-${yearShort}-${monthNum}`;
 
-      // ===============================
-      //     GENERATE NO LAPORAN (FINAL)
-      // ===============================
-    let noLaporan = "";
-
-if (form.jenisData === "rekon") {
+if (!noCounterMap[counterKey]) {
   const { data, error } = await supabase
     .from("audit_full")
-    .select("no_laporan")
-    .eq("jenisData", "rekon") // ✅ SESUAI DB
-    .ilike("no_laporan", `RN/${yearShort}/${monthNum}/%`);
-
-  if (error) {
-    console.error("❌ Rekon fetch error:", error.message);
-    toast.error("Gagal generate nomor Rekon");
-    continue;
-  }
-
-  const numbers = (data || [])
-    .map((d) => Number(d.no_laporan?.split("/")?.[3]))
-    .filter((n) => !isNaN(n));
-
-  const next = String(
-    (numbers.length ? Math.max(...numbers) : 0) + 1
-  ).padStart(3, "0");
-
-  noLaporan = `RN/${yearShort}/${monthNum}/${next}`;
-
-
-
-} else {
-  // 🔥 VISIT / NON VISIT
-  const prefix = form.jenisData === "visit" ? "SOV" : "SONV";
-
-  const { data, error } = await supabase
-    .from("audit_full")
-    .select("no_laporan")
+    .select("id", { count: "exact" })
     .ilike("no_laporan", `${prefix}/${yearShort}/${monthNum}/%`);
 
   if (error) {
-    console.error("❌ Fetch error:", error.message);
     toast.error("Gagal generate nomor laporan");
     continue;
   }
 
-  const numbers = (data || [])
-    .map((d) => Number(d.no_laporan?.split("/")?.[3]))
-    .filter((n) => !isNaN(n));
-
-  const next = String(
-    (numbers.length ? Math.max(...numbers) : 0) + 1
-  ).padStart(3, "0");
-
-  noLaporan = `${prefix}/${yearShort}/${monthNum}/${next}`;
+  noCounterMap[counterKey] = data?.length ?? 0;
 }
+
+// 🔥 TAMBAH COUNTER
+noCounterMap[counterKey] += 1;
+
+const next = String(noCounterMap[counterKey]).padStart(3, "0");
+
+noLaporan = `${prefix}/${yearShort}/${monthNum}/${next}`;
+
 
 
       // ===============================
@@ -2874,118 +2845,35 @@ const paginatedStatusPlanData = filteredStatusPlanData.slice(
   currentPageStatus * rowsPerPageStatus
 );
 
-const renumberNoLaporan = async (prefix: string, year: string, month: string) => {
-  toast(`⏳ Menyusun ulang nomor laporan ${prefix}/${year}/${month}...`);
+async function renumberNoLaporan(
+  prefix: "RN" | "SOV" | "SONV",
+  yearShort: string,
+  monthNum: string
+) {
+  const { data, error } = await supabase
+    .from("audit_full")
+    .select("id")
+    .ilike("no_laporan", `${prefix}/${yearShort}/${monthNum}/%`)
+    .order("created_at", { ascending: true });
 
-  try {
-    // 1️⃣ Ambil semua data untuk prefix + bulan yang sama
-    const { data, error } = await supabase
-      .from("audit_full")
-      .select("id, no_laporan")
-      .ilike("no_laporan", `${prefix}/${year}/${month}/%`)
-      .order("no_laporan", { ascending: true });
-
-    if (error) throw error;
-    if (!data || data.length === 0) {
-      toast("⚠️ Tidak ada data untuk dirapikan");
-      return;
-    }
-
-    // 2️⃣ Filter hanya nomor laporan yang *tidak punya tanda kurung*
-    const validList = data.filter(
-      (d) => d.no_laporan && !/\(.*\)/.test(d.no_laporan)
-    );
-
-    // 3️⃣ Loop dan update nomor baru untuk yang valid
-    let updatedCount = 0;
-    for (let i = 0; i < validList.length; i++) {
-      const oldNo = validList[i].no_laporan;
-      const newNo = `${prefix}/${year}/${month}/${String(i + 1).padStart(3, "0")}`;
-
-      if (oldNo !== newNo) {
-        await supabase
-          .from("audit_full")
-          .update({ no_laporan: newNo })
-          .eq("id", validList[i].id);
-        updatedCount++;
-      }
-    }
-
-    toast.success(
-      `✅ Nomor laporan ${prefix}/${year}/${month} berhasil dirapikan (${updatedCount} data diubah)`
-    );
-  } catch (err) {
-    console.error("❌ Gagal renumber:", err);
-    toast.error("❌ Gagal menomori ulang laporan!");
+  if (error) {
+    console.error("❌ Renumber error:", error.message);
+    return;
   }
-};
 
+  if (!data || data.length === 0) return;
 
-const handleDelete = async (id: number) => {
-  const yakin = window.confirm("⚠️ Apakah Anda yakin ingin menghapus data ini?");
-  if (!yakin) return;
+  for (let i = 0; i < data.length; i++) {
+    const newNo = `${prefix}/${yearShort}/${monthNum}/${String(i + 1).padStart(3, "0")}`;
 
-  try {
-    // 1️⃣ Ambil data lengkap baris yang mau dihapus (buat undo/redo)
-    const { data: originalData, error: fetchError } = await supabase
+    await supabase
       .from("audit_full")
-      .select("*")
-      .eq("id", id)
-      .single();
-
-    if (fetchError || !originalData) {
-      console.error("❌ Gagal ambil data:", fetchError?.message);
-      toast.error("Gagal mengambil data yang akan dihapus!");
-      return;
-    }
-
-    const noLaporan = originalData.no_laporan;
-
-   
-    const { error: auditError } = await supabase
-      .from("audit_full")
-      .delete()
-      .eq("id", id);
-
-    if (auditError) {
-      console.error("❌ Gagal hapus audit_full:", auditError.message);
-      toast.error("Gagal menghapus data di tabel Audit!");
-      return;
-    }
-
-   
-    if (noLaporan && typeof noLaporan === "string" && noLaporan.trim() !== "") {
-      try {
-        const [prefix, year, month] = noLaporan.split("/");
-
-        const { error: planError } = await supabase
-          .from("audit_full")
-          .delete()
-          .eq("no_laporan", noLaporan);
-
-        if (planError) {
-          console.error("❌ Gagal hapus audit_full:", planError.message);
-        } else {
-          await renumberNoLaporan(prefix, year, month);
-        }
-      } catch {
-        console.warn("⚠️ Format no_laporan tidak valid, skip renumber:", noLaporan);
-      }
-    }
-
-    // 4️⃣ Update UI state lokal
-    setDataList((prev) => prev.filter((d) => d.id !== id));
-
- 
-
-    // 6️⃣ Toast konfirmasi
-    toast.success("Data berhasil dihapus (bisa dikembalikan lewat tombol Redo)");
-
-  } catch (err) {
-    console.error("Unexpected error saat hapus:", err);
-    toast.error("Terjadi kesalahan saat menghapus data!");
+      .update({ no_laporan: newNo })
+      .eq("id", data[i].id);
   }
-};
+}
+
+
 
 
 
@@ -3834,6 +3722,7 @@ const filteredFullData = dataList
 
 
 
+  
 const handleDeleteUpdatePlan = async (plan: AuditData) => {
   const yakin = window.confirm(
     `⚠️ Yakin ingin menghapus data Update Plan: ${plan.no_laporan || "-"} ?`
@@ -3849,40 +3738,57 @@ const handleDeleteUpdatePlan = async (plan: AuditData) => {
       return;
     }
 
-    // 🟢 Hapus dari audit_full (WAJIB pakai .select())
-    const { error: planError } = await supabase
+    const [prefix, yearShort, monthNum] = noLaporan.split("/");
+
+    // ===============================
+    //   🗑️ DELETE audit_full
+    // ===============================
+    const { error: deleteError } = await supabase
       .from("audit_full")
       .delete()
       .eq("no_laporan", noLaporan)
-      .select(); // ⬅ FIX UTAMA
+      .select();
 
-    if (planError) {
-      console.error("❌ Gagal hapus audit_full:", planError.message);
-      toast.error("Gagal hapus data Update Plan!", { id: toastId });
+    if (deleteError) {
+      toast.error("Gagal hapus data!", { id: toastId });
       return;
     }
 
-    // 🟢 Hapus approval terkait
+    // ===============================
+    //   🗑️ DELETE approvals
+    // ===============================
     await supabase
       .from("approvals_status")
       .delete()
       .eq("report_id", plan.id);
 
-    // 🟢 Update UI
-    setDataList((prev) => prev.filter((d) => d.no_laporan !== noLaporan));
+    // ===============================
+    //   🔥 RENUMBER
+    // ===============================
+    await renumberNoLaporan(
+      prefix as "RN" | "SOV" | "SONV",
+      yearShort,
+      monthNum
+    );
 
-    toast.success("✅ Data berhasil dihapus!", {
+    // ===============================
+    //   🔄 AUTO FETCH (INI KUNCI)
+    // ===============================
+    await fetchData();
+
+    toast.success("✅ Data berhasil dihapus & dirapihkan!", {
       id: toastId,
       duration: 2000,
     });
   } catch (err) {
     console.error("🚨 Error hapus Update Plan:", err);
-    toast.error("Terjadi kesalahan saat menghapus data!", {
+    toast.error("Terjadi kesalahan!", {
       id: toastId,
       duration: 2000,
     });
   }
 };
+
 
 
 
