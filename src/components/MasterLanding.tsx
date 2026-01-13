@@ -36,7 +36,7 @@ const MASTER_MENU = [
   {
     label: "Users",
     desc: "Kelola data user & role",
-    href: "/master/users",
+    href: "/master/kelola-user",
     icon: Users,
   },
 {
