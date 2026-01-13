@@ -39,14 +39,7 @@ const router = useRouter();
 
   return (
     <div className="flex justify-center items-center w-full h-screen bg-gray-50">
-     <button
-  onClick={() => router.push("/master")}
 
-  className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition mb-4"
->
-  <ArrowLeft size={18} />
-  Kembali
-</button>
 
      
       <motion.div
@@ -55,9 +48,20 @@ const router = useRouter();
         transition={{ duration: 0.4 }}
         className="w-full max-w-3xl bg-white rounded-2xl shadow-lg p-8"
       >
-        <h2 className="text-2xl font-semibold mb-6 text-gray-800 flex items-center gap-2">
-          Kelola PIC
-        </h2>
+<div className="flex items-center gap-3 mb-6">
+  <button
+    onClick={() => router.push("/master")}
+    className="p-2 rounded-lg hover:bg-gray-100 transition"
+    title="Kembali"
+  >
+    <ArrowLeft size={20} className="text-gray-700" />
+  </button>
+
+  <h2 className="text-2xl font-semibold text-gray-800">
+    Kelola PIC
+  </h2>
+</div>
+
 
         {/* Input */}
         <div className="flex gap-3 mb-6">

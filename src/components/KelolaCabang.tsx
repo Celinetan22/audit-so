@@ -12,6 +12,9 @@ import {
   Check,
   X,
 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
+
 
 type Cabang = {
   id: number;
@@ -21,6 +24,7 @@ type Cabang = {
 };
 
 export default function KelolaCabang() {
+    const router = useRouter();
   const [cabangs, setCabangs] = useState<Cabang[]>([]);
   const [expanded, setExpanded] = useState<number[]>([]);
   const [showChildForm, setShowChildForm] = useState<number | null>(null);
@@ -265,9 +269,20 @@ const handleAddParent = async () => {
   return (
     <div className="w-full min-h-screen bg-gray-50 p-10">
       <div className="max-w-5xl mx-auto bg-white p-8 rounded-2xl shadow-md">
-        <h1 className="text-2xl font-semibold text-gray-800 mb-6">
-          Kelola Cabang
-        </h1>
+<div className="flex items-center gap-3 mb-6">
+  <button
+    onClick={() => router.push("/master")}
+    className="p-2 rounded-lg hover:bg-gray-100 transition"
+    title="Kembali"
+  >
+    <ArrowLeft className="w-5 h-5 text-gray-700" />
+  </button>
+
+  <h1 className="text-2xl font-semibold text-gray-800">
+    Kelola Cabang
+  </h1>
+</div>
+
 
         <div className="max-w-lg mb-10 space-y-2">
           <label className="block text-sm font-medium text-gray-700">
