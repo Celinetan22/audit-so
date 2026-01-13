@@ -4220,7 +4220,7 @@ onClick={() => {
 
 {activePage === "kelolaMaster" && (
   <AdminOnly>
-    <MasterLanding />
+     <MasterLanding setActivePage={setActivePage} />
   </AdminOnly>
 )}
 
