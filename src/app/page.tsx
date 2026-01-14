@@ -515,17 +515,17 @@ async function generateNoLaporanRekon(
   //     HITUNG NOMOR URUT
   // ===============================
 const numbers = (data || [])
-  .map((d) => {
-    const lastPart = d.no_laporan?.split("/")?.[3]; // "03B", "004", dll
-    const match = lastPart?.match(/^(\d+)/); // ambil angka depan
+  .map(d => {
+    const part = d.no_laporan?.split("/")[3] || "";
+    const match = part.match(/^(\d+)/); // 🔥 ambil angka depan SAJA
     return match ? Number(match[1]) : null;
   })
   .filter((n): n is number => n !== null);
 
+const nextNumber = String(
+  (numbers.length ? Math.max(...numbers) : 0) + 1
+).padStart(3, "0");
 
-  const nextNumber = String(
-    (numbers.length ? Math.max(...numbers) : 0) + 1
-  ).padStart(3, "0"); // 🔥 XXX (001, 002, ...)
 
   // ===============================
   //     HASIL FINAL
@@ -5590,10 +5590,18 @@ onClick={(data: any) => {
   <option value="rekon">Rekon Data</option>
 </select>
 
+
+
           </div>
+       
+       
+       
         </div>
         </details>
       ))}
+
+
+
 
 {/* === Tambah Form === */}
 <button
