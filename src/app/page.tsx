@@ -347,7 +347,17 @@ function formatToDDMMYYYYDisplay(value?: string | null): string {
   // ===== RANGE =====
   if (value.includes(" - ")) {
     const [a, b] = value.split(" - ");
-    return `${formatToDDMMYYYYDisplay(a.trim())} - ${formatToDDMMYYYYDisplay(b.trim())}`;
+    return `${formatToDDMMYYYYDisplay(a.trim())} - ${formatToDDMMYYYYDisplay(
+      b.trim()
+    )}`;
+  }
+
+  // ===== EXCEL SERIAL NUMBER =====
+  if (/^\d{5}$/.test(value)) {
+    const serial = Number(value);
+    const excelEpoch = new Date(1899, 11, 30);
+    const date = new Date(excelEpoch.getTime() + serial * 86400000);
+    return date.toLocaleDateString("id-ID");
   }
 
   // ===== yyyy-mm-dd =====
@@ -356,7 +366,7 @@ function formatToDDMMYYYYDisplay(value?: string | null): string {
     return `${d}/${m}/${y}`;
   }
 
-  // ===== dd-mm-yyyy 🔥 (INI YANG KURANG) =====
+  // ===== dd-mm-yyyy =====
   if (/^\d{2}-\d{2}-\d{4}$/.test(value)) {
     const [d, m, y] = value.split("-");
     return `${d}/${m}/${y}`;
@@ -367,8 +377,9 @@ function formatToDDMMYYYYDisplay(value?: string | null): string {
     return value;
   }
 
-  return value; // fallback
+  return value;
 }
+
 
 
 
@@ -3267,29 +3278,20 @@ const exportData = filteredData.map((d) => ({
   XLSX.writeFile(wb, `StockOpname_${new Date().toLocaleDateString("id-ID").replace(/\//g, "-")}.xlsx`);
 };
 
-const handleImportExcelWithJenis = async (e: React.ChangeEvent<HTMLInputElement>) => {
+const handleImportUpdatePlanToAuditFull = async (
+  e: React.ChangeEvent<HTMLInputElement>
+) => {
   const file = e.target.files?.[0];
   if (!file) return;
 
-  // 🔸 Pilih jenis data
-  const jenis = window.prompt("Pilih jenis data: ketik 'visit' atau 'non-visit'");
-  if (!jenis || (jenis !== "visit" && jenis !== "non-visit")) {
-    toast.error("Jenis data harus 'visit' atau 'non-visit'");
-    return;
-  }
+  // 🔸 Pilih bulan laporan
+  let inputBulan = window.prompt("Masukkan bulan (1–12 atau nama bulan):");
+  if (!inputBulan) return toast.error("Bulan wajib diisi!");
 
-  // 🔸 Pilih bulan (angka 1-12 atau nama)
-  let inputBulan = window.prompt("Masukkan bulan (contoh: 1 atau Januari):");
-  if (!inputBulan) {
-    toast.error("Bulan wajib diisi!");
-    return;
-  }
-
-  // Konversi nama bulan → angka
-  const bulanMapping: any = {
+  const bulanMap: Record<string, string> = {
     januari: "01",
-    febuari: "02",
     februari: "02",
+    febuari: "02",
     maret: "03",
     april: "04",
     mei: "05",
@@ -3302,15 +3304,15 @@ const handleImportExcelWithJenis = async (e: React.ChangeEvent<HTMLInputElement>
     desember: "12",
   };
 
-  inputBulan = inputBulan.toString().trim().toLowerCase();
+  inputBulan = inputBulan.toLowerCase().trim();
   const selectedMonth =
-    bulanMapping[inputBulan] ||
+    bulanMap[inputBulan] ||
     (Number(inputBulan) >= 1 && Number(inputBulan) <= 12
       ? String(Number(inputBulan)).padStart(2, "0")
       : null);
 
   if (!selectedMonth) {
-    toast.error("Bulan tidak valid! Ketik angka 1–12 atau nama bulan.");
+    toast.error("Bulan tidak valid!");
     return;
   }
 
@@ -3320,121 +3322,140 @@ const handleImportExcelWithJenis = async (e: React.ChangeEvent<HTMLInputElement>
       const data = new Uint8Array(evt.target?.result as ArrayBuffer);
       const workbook = XLSX.read(data, { type: "array" });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rawData = XLSX.utils.sheet_to_json(worksheet, {
+        defval: "",
+        raw: false,
+      });
 
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "", raw: false });
-      if (!jsonData || jsonData.length === 0) {
-        toast.error("File Excel kosong atau format tidak sesuai!");
+      if (!rawData.length) {
+        toast.error("File Excel kosong!");
         return;
       }
 
-      // 🔹 Bersihkan header
-      const cleanedData = jsonData.map((row: any) => {
-        const cleaned: any = {};
-        for (const key in row) {
-          const cleanKey = key.replace(/\s+/g, " ").trim().toUpperCase();
-          cleaned[cleanKey] = row[key];
-        }
-        return cleaned;
+      // 🔹 Normalisasi header
+      const cleanedData = rawData.map((row: any) => {
+        const obj: any = {};
+        Object.keys(row).forEach((key) => {
+          obj[key.replace(/\s+/g, " ").trim().toUpperCase()] = row[key];
+        });
+        return obj;
       });
 
-      // 🔹 Generate nomor laporan
-      const yearFull = new Date().getFullYear().toString();
-      const year = yearFull.slice(-2);
-      const prefix = jenis === "visit" ? "SOV" : "SONV";
+      // 🔹 Generate no_laporan
+      const yearFull = "2026";
+      const yearShort = "26";
+      const prefix = "SOV";
 
       const { data: lastData } = await supabase
         .from("audit_full")
         .select("no_laporan")
-        .ilike("no_laporan", `${prefix}/${year}/${selectedMonth}/%`)
+        .ilike("no_laporan", `${prefix}/${yearShort}/${selectedMonth}/%`)
         .order("no_laporan", { ascending: false })
         .limit(1);
 
       let counter = 1;
-      if (lastData && lastData.length > 0) {
-        const lastNo = lastData[0].no_laporan;
-        const lastSeq = parseInt(lastNo.split("/").pop() || "0", 10);
-        counter = lastSeq + 1;
+      if (lastData?.length) {
+        counter =
+          parseInt(lastData[0].no_laporan.split("/").pop() || "0", 10) + 1;
       }
 
-      // 🔹 Mapping data
+      // 🔹 Mapping Excel → audit_full
       const importedData = cleanedData
         .map((item: any, idx: number) => {
           if (!item["PIC"]) return null;
 
           const seq = String(counter + idx).padStart(3, "0");
-          const noLaporan = `${prefix}/${year}/${selectedMonth}/${seq}`;
 
           return {
             pic: String(item["PIC"])
               .split(",")
               .map((p: string) => p.trim()),
+
             bulan: item["BULAN"] || selectedMonth,
             minggu: item["MINGGU"] || "",
             tanggal: item["TANGGAL"] || "",
+
             jabodetabek: item["JABODETABEK"] || "",
             luar_jabodetabek: item["LUAR JABO"] || "",
+
             cabang: item["CABANG"] || "",
-            anak_cabang: item["ANAK CABANG"] || "",
             warehouse: item["WAREHOUSE"] || "",
+
             tradisional: item["TRADISIONAL"] || "",
             modern: item["MODERN"] || "",
-            whz: item["WH - Z"] || item["WH-Z"] || item["WHZ"] || "",
-            description:
-              item["DESCRIPTION"] ||
-              item["DESKRIPSI"] ||
-              item["NOTES"] ||
-              item["KETERANGAN"] ||
+            whz:
+              item["WH - Z"] ||
+              item["WH-Z"] ||
+              item["WHZ"] ||
               "",
-            status: item["STATUS"] || "Belum",
-            company: item["COMPANY"] || "",
-            jenisData: jenis,
-            tahun: item["TAHUN"] || yearFull,
-            no_laporan: noLaporan,
+
+            description: item["NOTES"] || "",
+
+            status: "Belum",
+            company: "",
+
+            jenisData: "visit",
+            tahun: yearFull,
+
+            no_laporan: `SOV/${yearShort}/${selectedMonth}/${seq}`,
           };
         })
-        .filter((x) => x !== null);
+        .filter(Boolean);
 
-      if (importedData.length === 0) {
-        toast.error("Tidak ada data valid yang bisa diimport!");
+      if (!importedData.length) {
+        toast.error("Tidak ada data valid!");
         return;
       }
 
-     
-      const { data: insertedAudit, error: auditError } = await supabase
+      // 🔹 INSERT ke audit_full
+      const { data: inserted, error } = await supabase
         .from("audit_full")
         .insert(importedData)
         .select();
 
-      if (auditError) {
-        console.error("❌ Gagal import ke audit_full:", auditError.message);
-        toast.error("Gagal import ke tabel Audit!");
+      if (error) {
+        console.error(error);
+        toast.error("Gagal import ke audit_full!");
         return;
       }
 
-      
-const { error: planError } = await supabase
-  .from("audit_full")
-  .upsert(importedData, { onConflict: "id" });
-
-
-      if (planError) {
-        console.error("❌ Gagal import ke audit_full:", planError.message);
-        toast.error("Gagal import ke Update Plan SO!");
-      }
-
-      // 🔹 Update tampilan
-      setDataList((prev) => [...insertedAudit, ...prev]);
       toast.success(
-        `Berhasil import ${insertedAudit.length} data ${jenis.toUpperCase()} untuk bulan ${selectedMonth}`
+        `Berhasil import ${inserted.length} data Update Plan SO Visit 2026`
       );
     } catch (err) {
-      console.error("Error saat import:", err);
-      toast.error("Terjadi kesalahan saat import Excel!");
+      console.error(err);
+      toast.error("Terjadi kesalahan saat import!");
     }
   };
 
   reader.readAsArrayBuffer(file);
 };
+
+const toISODate = (value: any): string => {
+  if (!value) return "";
+
+  // Excel serial number
+  if (!isNaN(value)) {
+    const base = new Date(1899, 11, 30);
+    const date = new Date(base.getTime() + Number(value) * 86400000);
+    return date.toISOString().split("T")[0]; // YYYY-MM-DD
+  }
+
+  // yyyy-mm-dd
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+
+  // dd-mm-yyyy / dd/mm/yyyy
+  if (/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(value)) {
+    const [d, m, y] = value.replace(/\//g, "-").split("-");
+    return `${y}-${m}-${d}`;
+  }
+
+  return "";
+};
+
+
 
 
 
@@ -5062,18 +5083,7 @@ onClick={(data: any) => {
       </div>
     </div>
 
-    {/* === IMPORT EXCEL === */}
-    <div className="mb-6">
-      <label className="block text-sm font-medium text-slate-700 mb-2">
-        Import dari Excel
-      </label>
-      <input
-        type="file"
-        accept=".xlsx"
-        onChange={handleImportExcelWithJenis}
-        className="block w-full text-sm text-slate-700 border border-slate-300 rounded-lg cursor-pointer bg-slate-50 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-600 hover:file:bg-blue-100 transition-all duration-200"
-      />
-    </div>
+
 
    {/* === MULTI FORM (PAKAI ACCORDION) === */}
 <form onSubmit={handleSubmitAll} className="space-y-4">
