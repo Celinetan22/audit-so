@@ -4981,6 +4981,15 @@ setFileHistory((prev) => [
 
         {/* Tombol Navigasi */}
         <div className="flex justify-between mt-6">
+       
+        {/* Tombol Kembali */}
+    <button
+      type="button"
+      onClick={() => setActivePage("updatePlanSO")}
+      className="px-4 py-2 rounded border bg-gray-100 hover:bg-gray-200 text-gray-700"
+    >
+      ← Kembali ke Update Plan
+    </button>
           <div className="flex gap-3">
             <button
               type="button"
