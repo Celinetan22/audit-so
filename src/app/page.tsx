@@ -4916,6 +4916,21 @@ onClick={(data: any) => {
         return;
       }
 
+
+// 🔹 update map di sini
+const noLaporan = selectedApproval?.no_laporan;
+if (noLaporan) {
+  setReportFilesMap((prev) => ({
+    ...prev,
+    [noLaporan]: true,
+  }));
+}
+// 🔹 Update fileHistory agar history otomatis tampil
+setFileHistory((prev) => [
+  insertedFile,  // file baru
+  ...prev,       // file lama
+]);
+
       // Update audit_full
       const { error: auditError } = await supabase
         .from("audit_full")
