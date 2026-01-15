@@ -5794,11 +5794,11 @@ const newDataList = dataList.map((d) =>
 {/* === FILTER & SEARCH BAR === */}
 <div className="flex flex-wrap items-center gap-3 mb-6 bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-sm">
   
-{/* Filter PIC */}
+ {/* Filter PIC */}
   <select
     value={searchPicUpdatePlan}
     onChange={(e) => setSearchPicUpdatePlan(e.target.value)}
-    className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm 
+    className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm
                focus:ring-2 focus:ring-blue-400 focus:outline-none transition"
   >
     <option value="">Semua PIC</option>
@@ -5820,7 +5820,6 @@ const newDataList = dataList.map((d) =>
     ))}
   </select>
 
-
   {/* Filter Tanggal (Range) */}
   <DatePicker
     selectsRange
@@ -5833,7 +5832,6 @@ const newDataList = dataList.map((d) =>
     className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm w-[180px]
                focus:ring-2 focus:ring-blue-400 focus:outline-none transition"
 
-    // 🔹 Klik judul bulan/tahun bisa pilih langsung
     renderCustomHeader={({
       date,
       changeYear,
@@ -5844,9 +5842,7 @@ const newDataList = dataList.map((d) =>
       nextMonthButtonDisabled,
     }) => (
       <div className="flex justify-between items-center px-2 py-1">
-        <button onClick={decreaseMonth} disabled={prevMonthButtonDisabled}>
-          {"<"}
-        </button>
+        <button onClick={decreaseMonth} disabled={prevMonthButtonDisabled}>{"<"}</button>
 
         {/* Dropdown Bulan */}
         <select
@@ -5874,9 +5870,7 @@ const newDataList = dataList.map((d) =>
           )}
         </select>
 
-        <button onClick={increaseMonth} disabled={nextMonthButtonDisabled}>
-          {">"}
-        </button>
+        <button onClick={increaseMonth} disabled={nextMonthButtonDisabled}>{">"}</button>
       </div>
     )}
 
@@ -5885,41 +5879,42 @@ const newDataList = dataList.map((d) =>
     popperContainer={({ children }) => <div className="z-[9999]">{children}</div>}
   />
 
-
-
-
-
-  {/* Filter Laporan */}
-  <select
-    value={reportStatusFilter}
-    onChange={(e) =>
-      setReportStatusFilter(e.target.value as "all" | "uploaded" | "notUploaded")
-    }
-    className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm
-               focus:ring-2 focus:ring-blue-400 focus:outline-none transition"
-  >
-    <option value="all">Filter Report Laporan</option>
-    <option value="uploaded">Sudah Upload</option>
-    <option value="notUploaded">Belum Upload</option>
-  </select>
+  {/* Filter Status Upload Report */}
+  <div>
+    <label className="sr-only">Status Upload Report</label>
+    <select
+      value={reportStatusFilter}
+      onChange={(e) =>
+        setReportStatusFilter(e.target.value as "all" | "uploaded" | "notUploaded")
+      }
+      className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm
+                 focus:ring-2 focus:ring-blue-400 focus:outline-none transition"
+    >
+      <option value="all">Status Upload Laporan</option>
+      <option value="uploaded">Sudah Upload</option>
+      <option value="notUploaded">Belum Upload</option>
+    </select>
+  </div>
 
   {/* Filter Kategori */}
-  <select
-    value={selectedKategoriUpdatePlan}
-    onChange={(e) => setSelectedKategoriUpdatePlan(e.target.value)}
-    className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm
-               focus:ring-2 focus:ring-blue-400 focus:outline-none transition"
-  >
-    <option value="">Semua Kategori</option>
-    <option value="jabodetabek">Jabodetabek</option>
-    <option value="luarJabodetabek">Luar Jabodetabek</option>
-    <option value="cabang">Cabang</option>
-    <option value="warehouse">Warehouse</option>
-    <option value="modern">Modern</option>
-    <option value="tradisional">Tradisional</option>
-    <option value="whz">WH-Z</option>
-  </select>
-  
+  <div>
+    <label className="sr-only">Jenis Kategori</label>
+    <select
+      value={selectedKategoriUpdatePlan}
+      onChange={(e) => setSelectedKategoriUpdatePlan(e.target.value)}
+      className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm
+                 focus:ring-2 focus:ring-blue-400 focus:outline-none transition"
+    >
+      <option value="">Semua Kategori</option>
+      <option value="jabodetabek">Jabodetabek</option>
+      <option value="luarJabodetabek">Luar Jabodetabek</option>
+      <option value="cabang">Cabang</option>
+      <option value="warehouse">Warehouse</option>
+      <option value="modern">Modern</option>
+      <option value="tradisional">Tradisional</option>
+      <option value="whz">WH-Z</option>
+    </select>
+  </div>
 
   {/* Search */}
   <div className="ml-auto relative flex-1 min-w-[250px] max-w-sm">
