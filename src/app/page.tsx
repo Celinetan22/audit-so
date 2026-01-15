@@ -572,6 +572,8 @@ const [statusTab, setStatusTab] =
   null,
 ]);
   const [isUploading, setIsUploading] = useState(false);
+const [isDeleting, setIsDeleting] = useState<number | null>(null);
+// null = tidak ada file yang dihapus, atau fileId yang sedang dihapus
 
   const [searchPicUpdatePlan, setSearchPicUpdatePlan] = useState(""); // Sekarang digunakan
   const [searchPicStatusPlan, setSearchPicStatusPlan] = useState("");
@@ -1919,8 +1921,10 @@ const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
 };
 
 
-const handleDeleteFile = async (fileId: number, fileUrl: string) => {
+const handleDeleteFile = async (fileId: number, fileUrl: string, noLaporan: string) => {
   try {
+    setIsDeleting(fileId);
+
     const url = new URL(fileUrl);
     const path = url.pathname.split("/storage/v1/object/public/report-plan/")[1];
     if (!path) return;
@@ -1929,13 +1933,13 @@ const handleDeleteFile = async (fileId: number, fileUrl: string) => {
     const { error: storageError } = await supabase.storage
       .from("report-plan")
       .remove([path]);
+
     if (storageError) {
-      console.error("Storage delete error:", storageError.message);
       toast.error("❌ Gagal hapus file di storage");
       return;
     }
 
-    // Hapus record DB pakai ID
+    // Hapus record DB
     const { data, error: dbError } = await supabase
       .from("report_files")
       .delete()
@@ -1943,43 +1947,37 @@ const handleDeleteFile = async (fileId: number, fileUrl: string) => {
       .select();
 
     if (dbError) {
-      console.error("DB delete error:", dbError.message);
       toast.error("❌ Gagal hapus record di database");
       return;
     }
 
+    // Update front-end
     setFileHistory((prev) => prev.filter((f) => f.id !== fileId));
+
+    // 🔹 Update reportFilesMap
+    setReportFilesMap((prev) => {
+      const newMap = { ...prev };
+      // cek apakah masih ada file untuk no_laporan ini
+      const stillHasFile = fileHistory.some(
+        (f) => f.no_laporan === noLaporan && f.id !== fileId
+      );
+      if (!stillHasFile) {
+        newMap[noLaporan] = false; // kalau ga ada file, tombol biru
+      }
+      return newMap;
+    });
+
     toast.success("✅ File berhasil dihapus");
   } catch (err) {
     console.error(err);
     toast.error("❌ Terjadi kesalahan saat hapus file");
+  } finally {
+    setIsDeleting(null);
   }
 };
 
 
 
-const handleTeamCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  if (!editData) return;
-
-  const { value, checked } = e.target;
-
-  let updatedTeam = Array.isArray(editData.team)
-    ? [...editData.team]
-    : editData.team
-    ? [editData.team]
-    : [];
-
-  if (checked) {
-    if (!updatedTeam.includes(value)) updatedTeam.push(value);
-  } else {
-    updatedTeam = updatedTeam.filter((t) => t !== value);
-  }
-
-  setEditData({
-    ...editData,
-    team: updatedTeam,
-  });
-};
 
 
 
@@ -5030,10 +5028,13 @@ onClick={(data: any) => {
                   <td className="px-4 py-2 text-center">
 <button
   type="button"
-  onClick={() => handleDeleteFile(f.id, f.file_url)}
-  className="ml-2 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
+  onClick={() => handleDeleteFile(f.id, f.file_url, f.no_laporan)}
+  className={`ml-2 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm ${
+    isDeleting === f.id ? "bg-gray-400 cursor-not-allowed" : ""
+  }`}
+  disabled={isDeleting === f.id}
 >
-  Hapus
+  {isDeleting === f.id ? "Menghapus..." : "Hapus"}
 </button>
 
                   </td>
