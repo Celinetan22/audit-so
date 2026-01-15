@@ -554,6 +554,8 @@ export default function AuditApp() {
   const [searchText, setSearchText] = useState("");
   const [searchBulanStatusPlan, setSearchBulanStatusPlan] = useState<string>("");
   const [selectedBulanUpdatePlan, setSelectedBulanUpdatePlan] = useState(""); // Sekarang digunakan
+const [reportStatusFilter, setReportStatusFilter] = useState<"all" | "uploaded" | "notUploaded">("all");
+
 
   const [searchTanggal, setSearchTanggal] = useState("");
 const [statusTab, setStatusTab] =
@@ -3532,6 +3534,16 @@ const matchStatus =
             .includes(searchTanggal.toLowerCase())
         : true;
 
+
+        const matchReportStatus = (() => {
+  if (reportStatusFilter === "uploaded") {
+    return reportFilesMap[d.no_laporan ?? ""] === true;
+  } else if (reportStatusFilter === "notUploaded") {
+    return !reportFilesMap[d.no_laporan ?? ""];
+  }
+  return true; // "all"
+})();
+
         // ===============================
 // 🗓️ FILTER TANGGAL (DATE PICKER)
 // ===============================
@@ -3600,7 +3612,8 @@ const matchTanggalRange =
         matchTanggal &&
         matchText &&
         matchKategori &&
-        matchNoLaporanUpdate
+        matchNoLaporanUpdate &&
+        matchReportStatus
       );
     } catch (err) {
       console.error("❌ Filter error:", d, err);
@@ -5780,7 +5793,8 @@ const newDataList = dataList.map((d) =>
 
 {/* === FILTER & SEARCH BAR === */}
 <div className="flex flex-wrap items-center gap-3 mb-6 bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-sm">
-  {/* Filter PIC */}
+  
+{/* Filter PIC */}
   <select
     value={searchPicUpdatePlan}
     onChange={(e) => setSearchPicUpdatePlan(e.target.value)}
@@ -5789,97 +5803,122 @@ const newDataList = dataList.map((d) =>
   >
     <option value="">Semua PIC</option>
     {picOptions.map((pic) => (
-      <option key={pic} value={pic}>
-        {pic}
-      </option>
+      <option key={pic} value={pic}>{pic}</option>
     ))}
   </select>
 
-<select
-  value={selectedYearUpdatePlan}
-  onChange={(e) => setSelectedYearUpdatePlan(e.target.value)}
-  className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm 
-             focus:ring-2 focus:ring-blue-400 focus:outline-none transition"
->
-  <option value="">Semua Tahun</option>
-
-  {yearOptions.map((year) => (
-    <option key={year} value={year}>
-      {year}
-    </option>
-  ))}
-</select>
+  {/* Filter Tahun */}
+  <select
+    value={selectedYearUpdatePlan}
+    onChange={(e) => setSelectedYearUpdatePlan(e.target.value)}
+    className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm
+               focus:ring-2 focus:ring-blue-400 focus:outline-none transition"
+  >
+    <option value="">Semua Tahun</option>
+    {yearOptions.map((year) => (
+      <option key={year} value={year}>{year}</option>
+    ))}
+  </select>
 
 
+  {/* Filter Tanggal (Range) */}
+  <DatePicker
+    selectsRange
+    startDate={filterTanggalAwal}
+    endDate={filterTanggalAkhir}
+    onChange={(update) => setFilterTanggalRange(update)}
+    isClearable
+    placeholderText="Filter Tanggal dan Bulan"
+    dateFormat="dd/MM/yyyy"
+    className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm w-[180px]
+               focus:ring-2 focus:ring-blue-400 focus:outline-none transition"
+
+    // 🔹 Klik judul bulan/tahun bisa pilih langsung
+    renderCustomHeader={({
+      date,
+      changeYear,
+      changeMonth,
+      decreaseMonth,
+      increaseMonth,
+      prevMonthButtonDisabled,
+      nextMonthButtonDisabled,
+    }) => (
+      <div className="flex justify-between items-center px-2 py-1">
+        <button onClick={decreaseMonth} disabled={prevMonthButtonDisabled}>
+          {"<"}
+        </button>
+
+        {/* Dropdown Bulan */}
+        <select
+          value={date.getMonth()}
+          onChange={(e) => changeMonth(Number(e.target.value))}
+          className="mx-1 text-sm"
+        >
+          {Array.from(Array(12).keys()).map((m) => (
+            <option key={m} value={m}>
+              {new Date(0, m).toLocaleString("id-ID", { month: "long" })}
+            </option>
+          ))}
+        </select>
+
+        {/* Dropdown Tahun */}
+        <select
+          value={date.getFullYear()}
+          onChange={(e) => changeYear(Number(e.target.value))}
+          className="mx-1 text-sm"
+        >
+          {Array.from({ length: 20 }, (_, i) => new Date().getFullYear() - 10 + i).map(
+            (y) => (
+              <option key={y} value={y}>{y}</option>
+            )
+          )}
+        </select>
+
+        <button onClick={increaseMonth} disabled={nextMonthButtonDisabled}>
+          {">"}
+        </button>
+      </div>
+    )}
+
+    popperPlacement="bottom-start"
+    popperClassName="z-[9999]"
+    popperContainer={({ children }) => <div className="z-[9999]">{children}</div>}
+  />
 
 
- <select
-  value={selectedBulanUpdatePlan}
-  onChange={(e) => setSelectedBulanUpdatePlan(e.target.value)}
-  className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm 
-             focus:ring-2 focus:ring-blue-400 focus:outline-none transition"
->
-  <option value="">Semua Bulan</option>
-  {[
-    "JANUARI",
-    "FEBRUARI",
-    "MARET",
-    "APRIL",
-    "MEI",
-    "JUNI",
-    "JULI",
-    "AGUSTUS",
-    "SEPTEMBER",
-    "OKTOBER",
-    "NOVEMBER",
-    "DESEMBER",
-  ].map((bln) => (
-    <option key={bln} value={bln}>
-      {bln}
-    </option>
-  ))}
-</select>
-
-{/* FILTER TANGGAL */}
-<DatePicker
-  selectsRange
-  startDate={filterTanggalAwal}
-  endDate={filterTanggalAkhir}
-  onChange={(update) => setFilterTanggalRange(update)}
-  isClearable
-  dateFormat="dd/MM/yyyy"
-  placeholderText="Filter Tanggal"
-
-  className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm 
-             focus:ring-2 focus:ring-blue-400 focus:outline-none transition w-[220px]"
-
-  popperPlacement="bottom-start"
-  popperClassName="z-[9999]"
-  popperContainer={({ children }) => (
-    <div className="z-[9999]">{children}</div>
-  )}
-/>
 
 
 
-{/* Filter Kategori */}
-<select
-  value={selectedKategoriUpdatePlan}
-  onChange={(e) => setSelectedKategoriUpdatePlan(e.target.value)}
-  className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm
-             focus:ring-2 focus:ring-blue-400 focus:outline-none transition"
->
-  <option value="">Semua Kategori</option>
-  <option value="jabodetabek">Jabodetabek</option>
-  <option value="luarJabodetabek">Luar Jabodetabek</option>
-  <option value="cabang">Cabang</option> {/* ✅ TAMBAH INI */}
-  <option value="warehouse">Warehouse</option>
-  <option value="modern">Modern</option>
-  <option value="tradisional">Tradisional</option>
-  <option value="whz">WH-Z</option>
-</select>
+  {/* Filter Laporan */}
+  <select
+    value={reportStatusFilter}
+    onChange={(e) =>
+      setReportStatusFilter(e.target.value as "all" | "uploaded" | "notUploaded")
+    }
+    className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm
+               focus:ring-2 focus:ring-blue-400 focus:outline-none transition"
+  >
+    <option value="all">Filter Report Laporan</option>
+    <option value="uploaded">Sudah Upload</option>
+    <option value="notUploaded">Belum Upload</option>
+  </select>
 
-
+  {/* Filter Kategori */}
+  <select
+    value={selectedKategoriUpdatePlan}
+    onChange={(e) => setSelectedKategoriUpdatePlan(e.target.value)}
+    className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm
+               focus:ring-2 focus:ring-blue-400 focus:outline-none transition"
+  >
+    <option value="">Semua Kategori</option>
+    <option value="jabodetabek">Jabodetabek</option>
+    <option value="luarJabodetabek">Luar Jabodetabek</option>
+    <option value="cabang">Cabang</option>
+    <option value="warehouse">Warehouse</option>
+    <option value="modern">Modern</option>
+    <option value="tradisional">Tradisional</option>
+    <option value="whz">WH-Z</option>
+  </select>
   
 
   {/* Search */}
@@ -6438,7 +6477,7 @@ onClick={() => {
       {/* Header */}
       <div className="flex justify-between items-center pb-4 border-b border-blue-100">
         <h2 className="text-2xl font-semibold text-blue-700">
-          Edit Data Sales Order
+          Edit Data Update Plan SO
         </h2>
         <button
           onClick={() => setShowEditModal(false)}
