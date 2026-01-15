@@ -3287,6 +3287,10 @@ const exportData = filteredData.map((d) => ({
   "Jabodetabek": d.jabodetabek || "",
   "Luar Jabodetabek": d.luarJabodetabek || "",
   "Cabang": d.cabang || "",
+    // 🔥 ANAK CABANG (BARU)
+  "Anak Cabang": Array.isArray(d.anakCabang)
+    ? d.anakCabang.join(", ")
+    : d.anakCabang || "",
   "Warehouse": d.warehouse || "",
   "Traditional": d.tradisional || "",
   "Modern": d.modern || "",
