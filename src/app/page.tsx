@@ -571,6 +571,7 @@ const [statusTab, setStatusTab] =
   null,
   null,
 ]);
+  const [isUploading, setIsUploading] = useState(false);
 
   const [searchPicUpdatePlan, setSearchPicUpdatePlan] = useState(""); // Sekarang digunakan
   const [searchPicStatusPlan, setSearchPicStatusPlan] = useState("");
@@ -1268,7 +1269,31 @@ useEffect(() => {
   fetchOptions();
 }, []);
 
+const fetchReportFilesMap = async () => {
+  const { data, error } = await supabase
+    .from("report_files")
+    .select("no_laporan");
 
+  if (error) {
+    console.error("❌ fetchReportFilesMap error:", error.message);
+    return;
+  }
+
+  const map: Record<string, boolean> = {};
+
+  data?.forEach((row) => {
+    if (row.no_laporan) {
+      map[row.no_laporan] = true;
+    }
+  });
+
+  setReportFilesMap(map);
+};
+
+
+useEffect(() => {
+  fetchReportFilesMap();
+}, []);
 
   // ambil PIC awal
   useEffect(() => {
@@ -1894,33 +1919,43 @@ const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
 };
 
 
-const handleDeleteFile = async (
-  noLaporan: string,
-  fileUrl: string
-) => {
+const handleDeleteFile = async (fileId: number, fileUrl: string) => {
   try {
     const url = new URL(fileUrl);
     const path = url.pathname.split("/storage/v1/object/public/report-plan/")[1];
-
     if (!path) return;
 
-    // hapus file di storage
-    await supabase.storage.from("report-plan").remove([path]);
+    // Hapus file di storage
+    const { error: storageError } = await supabase.storage
+      .from("report-plan")
+      .remove([path]);
+    if (storageError) {
+      console.error("Storage delete error:", storageError.message);
+      toast.error("❌ Gagal hapus file di storage");
+      return;
+    }
 
-    // hapus record DB (🔥 pakai no_laporan)
-    await supabase
+    // Hapus record DB pakai ID
+    const { data, error: dbError } = await supabase
       .from("report_files")
       .delete()
-      .eq("no_laporan", noLaporan)
-      .eq("file_url", fileUrl);
+      .eq("id", fileId)
+      .select();
 
-    setFileHistory((prev) =>
-      prev.filter((f) => f.file_url !== fileUrl)
-    );
+    if (dbError) {
+      console.error("DB delete error:", dbError.message);
+      toast.error("❌ Gagal hapus record di database");
+      return;
+    }
+
+    setFileHistory((prev) => prev.filter((f) => f.id !== fileId));
+    toast.success("✅ File berhasil dihapus");
   } catch (err) {
     console.error(err);
+    toast.error("❌ Terjadi kesalahan saat hapus file");
   }
 };
+
 
 
 const handleTeamCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -4840,21 +4875,20 @@ onClick={(data: any) => {
 <form
   onSubmit={async (e) => {
     e.preventDefault();
+    setIsUploading(true); // 🔹 mulai loading
 
     try {
       let fileUrl: string | null = null;
 
-      // 1️⃣ Upload file
+      // Upload file
       if (selectedFile) {
         const { data, error } = await supabase.storage
           .from("report-plan")
-          .upload(
-            `reports/${Date.now()}_${selectedFile.name}`,
-            selectedFile
-          );
+          .upload(`reports/${Date.now()}_${selectedFile.name}`, selectedFile);
 
         if (error) {
           toast.error(error.message);
+          setIsUploading(false);
           return;
         }
 
@@ -4865,24 +4899,26 @@ onClick={(data: any) => {
         fileUrl = publicUrl.publicUrl;
       }
 
-      // 2️⃣ Simpan file (TANPA report_id)
-      const { error: fileError } = await supabase
+      // Simpan ke database
+      const { data: insertedFile, error: fileError } = await supabase
         .from("report_files")
         .insert([
           {
-            report_name: reportName,
+            no_laporan: selectedApproval.no_laporan,
             report_description: description,
             file_url: fileUrl,
           },
-        ]);
+        ])
+        .select()
+        .single();
 
       if (fileError) {
-        console.error("❌ report_files error:", fileError);
         toast.error(fileError.message);
+        setIsUploading(false);
         return;
       }
 
-      // 3️⃣ Update audit_full (pakai no_laporan langsung)
+      // Update audit_full
       const { error: auditError } = await supabase
         .from("audit_full")
         .update({
@@ -4893,6 +4929,7 @@ onClick={(data: any) => {
 
       if (auditError) {
         toast.error(auditError.message);
+        setIsUploading(false);
         return;
       }
 
@@ -4903,9 +4940,12 @@ onClick={(data: any) => {
     } catch (err) {
       console.error(err);
       toast.error("❌ Gagal simpan report");
+    } finally {
+      setIsUploading(false); // 🔹 selesai loading
     }
   }}
 >
+
 
 
 
@@ -4936,12 +4976,14 @@ onClick={(data: any) => {
             >
               Batal
             </button>
-            <button
-              type="submit"
-              className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
-            >
-              Simpan
-            </button>
+           <button
+  type="submit"
+  className={`px-4 py-2 rounded text-white ${isUploading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
+  disabled={isUploading}
+>
+  {isUploading ? "Menyimpan..." : "Simpan"}
+</button>
+
           </div>
         </div>
       </form>
@@ -4957,8 +4999,7 @@ onClick={(data: any) => {
           <table className="w-full text-sm text-left border-collapse">
             <thead className="bg-gray-200 text-gray-700">
               <tr>
-                <th className="px-4 py-2">Deskripsi</th>
-                <th className="px-4 py-2">Diupload oleh</th>
+
                 <th className="px-4 py-2">Tanggal</th>
                 <th className="px-4 py-2">File</th>
                 <th className="px-4 py-2 text-center">Aksi</th>
@@ -4967,8 +5008,6 @@ onClick={(data: any) => {
             <tbody>
               {fileHistory.map((f) => (
                 <tr key={f.id} className="border-t hover:bg-gray-50">
-                  <td className="px-4 py-2">{f.report_description || "—"}</td>
-                  <td className="px-4 py-2">{f.uploaded_by || "—"}</td>
                   <td className="px-4 py-2 text-xs">
                     {f.created_at
                       ? new Date(f.created_at).toLocaleString("id-ID")
@@ -4989,13 +5028,14 @@ onClick={(data: any) => {
                     )}
                   </td>
                   <td className="px-4 py-2 text-center">
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteFile(f.report_id, f.file_url)}
-                      className="ml-2 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
-                    >
-                      Hapus
-                    </button>
+<button
+  type="button"
+  onClick={() => handleDeleteFile(f.id, f.file_url)}
+  className="ml-2 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
+>
+  Hapus
+</button>
+
                   </td>
                 </tr>
               ))}
@@ -6258,16 +6298,17 @@ paginatedUpdatePlanData.map((d, i) => (
       setSelectedApproval(d);
       setActivePage("uploadReport");
     }}
-    className={`px-3 py-1.5 rounded-lg text-sm text-white shadow
-      
-        reportFilesMap[d.no_laporan ?? ""]
-          ? "bg-green-600 hover:bg-green-700"
-          : "bg-blue-600 hover:bg-blue-700"
-      }`}
+    className={`px-3 py-1.5 rounded-lg text-sm text-white shadow ${
+  reportFilesMap[d.no_laporan ?? ""]
+    ? "bg-green-600 hover:bg-green-700"
+    : "bg-blue-600 hover:bg-blue-700"
+}`}
+
   >
     Report
   </button>
 </td>
+
 
 
 <td className="p-2 border border-gray-300 text-center">
