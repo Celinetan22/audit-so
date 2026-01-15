@@ -1319,16 +1319,44 @@ useEffect(() => {
       .select("id, name, parent_id")
       .order("name", { ascending: true });
 
-    if (error) {
-      console.error("❌ Gagal fetch cabang:", error.message);
-      return;
+    if (!error && data) {
+      setCabangOptions(data as Cabang[]);
+      buildCabangTree(data);
     }
-    if (data) setCabangOptions(data as Cabang[]);
+  };
+
+  const buildCabangTree = (data: Cabang[]) => {
+    const map: Record<number, Cabang> = {};
+    const root: Cabang[] = [];
+
+    data.forEach((c) => (map[c.id] = { ...c, children: [] }));
+    data.forEach((c) => {
+      if (c.parent_id) map[c.parent_id]?.children?.push(map[c.id]);
+      else root.push(map[c.id]);
+    });
+
+    setCabangs(root);
   };
 
   fetchCabang();
-    fetchCabangsTree(); 
+
+  // 🔥 REALTIME LISTENER
+  const channel = supabase
+    .channel("cabangs-changes")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "cabangs" },
+      () => {
+        fetchCabang(); // ⬅️ AUTO REFRESH STATE
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }, []);
+
 
 useEffect(() => {
   const fetchModernOptions = async () => {
@@ -2371,24 +2399,20 @@ const payload = {
   luar_jabodetabek: form.luarJabodetabek,
 
   cabang: form.cabang,
+  anak_cabang: form.anakCabang?.trim() || null, // 🔥 FIX UTAMA
+
   warehouse: form.warehouse,
   tradisional: form.tradisional,
   modern: form.modern,
   whz: form.whz,
 
-  // 🔥 FIX UTAMA
   description: form.notes,
-
-
   status: "Belum",
   company: form.company,
-  jenisData: form.jenisData, // ⬅️ snake_case (lebih aman)
+  jenisData: form.jenisData,
   created_at: new Date().toISOString(),
-
-  ...(form.anakCabang?.trim()
-    ? { anak_cabang: form.anakCabang }
-    : {}),
 };
+
 
 
       // ===============================
