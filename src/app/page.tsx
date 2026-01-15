@@ -873,6 +873,13 @@ const getYearFromTanggal = (val?: string | null) => {
   return /^\d{4}$/.test(year) ? year : null;
 };
 
+const years = Array.from(
+  { length: 20 },
+  (_, i) => new Date().getFullYear() - 10 + i
+);
+
+const months = Array.from(Array(12).keys());
+
 
 // === STATE UNTUK TAB & PENCARIAN ===
 const [activeTab, setActiveTab] = useState("Semua");
@@ -6624,29 +6631,91 @@ onClick={() => {
         <label className="text-sm font-medium text-slate-700">
           Tanggal Estimasi
         </label>
-        <DatePicker
-          selectsRange
-          startDate={estimasiRange[0]}
-          endDate={estimasiRange[1]}
-          onChange={(update) => {
-            const [start, end] = update as [Date | null, Date | null];
-            setEstimasiRange([start, end]);
+<DatePicker
+  selectsRange
+  startDate={estimasiRange[0]}
+  endDate={estimasiRange[1]}
+  onChange={(update) => {
+    const [start, end] = update as [Date | null, Date | null];
+    setEstimasiRange([start, end]);
 
-            setEditingData({
-              ...editingData,
-              tanggal_estimasi_full:
-                start && end
-                  ? `${formatToDDMMYYYY(start)} - ${formatToDDMMYYYY(end)}`
-                  : start
-                  ? formatToDDMMYYYY(start)
-                  : "",
-            });
-          }}
-          dateFormat="dd/MM/yyyy"
-          placeholderText="Pilih rentang tanggal"
-          isClearable
-          className="w-full border border-slate-300 p-2 rounded-lg"
-        />
+    setEditingData({
+      ...editingData,
+      tanggal_estimasi_full:
+        start && end
+          ? `${formatToDDMMYYYY(start)} - ${formatToDDMMYYYY(end)}`
+          : start
+          ? formatToDDMMYYYY(start)
+          : "",
+    });
+  }}
+  isClearable
+  placeholderText="Pilih rentang tanggal"
+  dateFormat="dd/MM/yyyy"
+  className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm
+             focus:ring-2 focus:ring-blue-400 focus:outline-none transition"
+
+  renderCustomHeader={({
+    date,
+    changeYear,
+    changeMonth,
+    decreaseMonth,
+    increaseMonth,
+    prevMonthButtonDisabled,
+    nextMonthButtonDisabled,
+  }) => (
+    <div className="flex justify-between items-center px-2 py-1">
+      <button
+        onClick={decreaseMonth}
+        disabled={prevMonthButtonDisabled}
+        className="px-2"
+      >
+        {"<"}
+      </button>
+
+      {/* Bulan */}
+      <select
+        value={date.getMonth()}
+        onChange={(e) => changeMonth(Number(e.target.value))}
+        className="mx-1 text-sm border rounded px-1"
+      >
+        {months.map((m) => (
+          <option key={m} value={m}>
+            {new Date(0, m).toLocaleString("id-ID", { month: "long" })}
+          </option>
+        ))}
+      </select>
+
+      {/* Tahun */}
+      <select
+        value={date.getFullYear()}
+        onChange={(e) => changeYear(Number(e.target.value))}
+        className="mx-1 text-sm border rounded px-1"
+      >
+        {years.map((y) => (
+          <option key={y} value={y}>
+            {y}
+          </option>
+        ))}
+      </select>
+
+      <button
+        onClick={increaseMonth}
+        disabled={nextMonthButtonDisabled}
+        className="px-2"
+      >
+        {">"}
+      </button>
+    </div>
+  )}
+
+  popperPlacement="bottom-start"
+  popperClassName="z-[9999]"
+  popperContainer={({ children }) => (
+    <div className="z-[9999]">{children}</div>
+  )}
+/>
+
       </div>
 
       {/* Minggu */}
@@ -6667,29 +6736,81 @@ onClick={() => {
         <label className="text-sm font-medium text-slate-700">
           Tanggal Realisasi
         </label>
-        <DatePicker
-          selectsRange
-          startDate={realisasiRange[0]}
-          endDate={realisasiRange[1]}
-          onChange={(update) => {
-            const [start, end] = update as [Date | null, Date | null];
-            setRealisasiRange([start, end]);
+       <DatePicker
+  selectsRange
+  startDate={realisasiRange[0]}
+  endDate={realisasiRange[1]}
+  onChange={(update) => {
+    const [start, end] = update as [Date | null, Date | null];
+    setRealisasiRange([start, end]);
 
-            setEditingData({
-              ...editingData,
-              realisasi:
-                start && end
-                  ? `${formatToDDMMYYYY(start)} - ${formatToDDMMYYYY(end)}`
-                  : start
-                  ? formatToDDMMYYYY(start)
-                  : "",
-            });
-          }}
-          dateFormat="dd/MM/yyyy"
-          placeholderText="Pilih rentang tanggal"
-          isClearable
-          className="w-full border border-slate-300 p-2 rounded-lg"
-        />
+    setEditingData({
+      ...editingData,
+      realisasi:
+        start && end
+          ? `${formatToDDMMYYYY(start)} - ${formatToDDMMYYYY(end)}`
+          : start
+          ? formatToDDMMYYYY(start)
+          : "",
+    });
+  }}
+  isClearable
+  placeholderText="Pilih rentang tanggal"
+  dateFormat="dd/MM/yyyy"
+  className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm
+             focus:ring-2 focus:ring-blue-400 focus:outline-none transition"
+
+  renderCustomHeader={({
+    date,
+    changeYear,
+    changeMonth,
+    decreaseMonth,
+    increaseMonth,
+    prevMonthButtonDisabled,
+    nextMonthButtonDisabled,
+  }) => (
+    <div className="flex justify-between items-center px-2 py-1">
+      <button onClick={decreaseMonth} disabled={prevMonthButtonDisabled}>
+        {"<"}
+      </button>
+
+      <select
+        value={date.getMonth()}
+        onChange={(e) => changeMonth(Number(e.target.value))}
+        className="mx-1 text-sm border rounded px-1"
+      >
+        {months.map((m) => (
+          <option key={m} value={m}>
+            {new Date(0, m).toLocaleString("id-ID", { month: "long" })}
+          </option>
+        ))}
+      </select>
+
+      <select
+        value={date.getFullYear()}
+        onChange={(e) => changeYear(Number(e.target.value))}
+        className="mx-1 text-sm border rounded px-1"
+      >
+        {years.map((y) => (
+          <option key={y} value={y}>
+            {y}
+          </option>
+        ))}
+      </select>
+
+      <button onClick={increaseMonth} disabled={nextMonthButtonDisabled}>
+        {">"}
+      </button>
+    </div>
+  )}
+
+  popperPlacement="bottom-start"
+  popperClassName="z-[9999]"
+  popperContainer={({ children }) => (
+    <div className="z-[9999]">{children}</div>
+  )}
+/>
+
       </div>
     </div>
   </div>
