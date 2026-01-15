@@ -203,63 +203,6 @@ const AREA_CHANNEL_GROUPS = {
   whz: ["whz"],
 };
 
-const renderMonthYearHeader = ({
-  date,
-  changeYear,
-  changeMonth,
-  decreaseMonth,
-  increaseMonth,
-  prevMonthButtonDisabled,
-  nextMonthButtonDisabled,
-}: any) => (
-  <div className="flex items-center justify-between px-2 py-1">
-    <button
-      onClick={decreaseMonth}
-      disabled={prevMonthButtonDisabled}
-    >
-      ‹
-    </button>
-
-    <div className="flex gap-2">
-      {/* BULAN */}
-      <select
-        value={date.getMonth()}
-        onChange={(e) => changeMonth(Number(e.target.value))}
-        className="border rounded px-1 text-sm"
-      >
-        {[
-          "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
-          "Jul", "Agu", "Sep", "Okt", "Nov", "Des",
-        ].map((m, i) => (
-          <option key={m} value={i}>{m}</option>
-        ))}
-      </select>
-
-      {/* TAHUN */}
-      <select
-        value={date.getFullYear()}
-        onChange={(e) => changeYear(Number(e.target.value))}
-        className="border rounded px-1 text-sm"
-      >
-        {Array.from({ length: 20 }, (_, i) => {
-          const year = new Date().getFullYear() - 10 + i;
-          return (
-            <option key={year} value={year}>
-              {year}
-            </option>
-          );
-        })}
-      </select>
-    </div>
-
-    <button
-      onClick={increaseMonth}
-      disabled={nextMonthButtonDisabled}
-    >
-      ›
-    </button>
-  </div>
-);
 
 
 
@@ -725,6 +668,64 @@ const parseTanggalToDate = (val?: string | null) => {
 
   return null;
 };
+const parseTanggalRange = (val?: string | null) => {
+  if (!val) return null;
+
+  val = val.trim();
+
+  // 🔥 FORMAT: 18 - 21/02/2025
+  if (/^\d{1,2}\s*-\s*\d{1,2}\/\d{2}\/\d{4}$/.test(val)) {
+    const [startDay, rest] = val.split("-");
+    const [endDay, month, year] = rest.trim().split("/");
+
+    const start = new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(startDay.trim())
+    );
+
+    const end = new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(endDay)
+    );
+
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+
+    return { start, end };
+  }
+
+  // 🔹 FORMAT: dd/MM/yyyy - dd/MM/yyyy
+  if (/^\d{2}\/\d{2}\/\d{4}\s*-\s*\d{2}\/\d{2}\/\d{4}$/.test(val)) {
+    const [s, e] = val.split(" - ");
+    const parse = (x: string) => {
+      const [d, m, y] = x.split("/");
+      return new Date(Number(y), Number(m) - 1, Number(d));
+    };
+
+    const start = parse(s);
+    const end = parse(e);
+
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+
+    return { start, end };
+  }
+
+  // 🔹 FORMAT: dd/MM/yyyy (single)
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(val)) {
+    const [d, m, y] = val.split("/");
+    const date = new Date(Number(y), Number(m) - 1, Number(d));
+
+    date.setHours(0, 0, 0, 0);
+
+    return { start: date, end: date };
+  }
+
+  return null;
+};
+
 
 
 const formatToDDMMYYYY = (date: Date | null) => {
@@ -3221,20 +3222,54 @@ const handleToggleStatus = async (
 
 
 const exportToExcel = () => {
-  const filteredData = dataList
-    .filter((d) => (statusTab === "" ? true : d.status === statusTab))
-   
-    .filter((d) =>
-      searchPicUpdatePlan === "" ? true : d.pic?.includes(searchPicUpdatePlan)
-    )
-    .filter((d) =>
-      selectedBulanUpdatePlan === "" ? true : d.bulan === selectedBulanUpdatePlan
-    )
-    .filter((d) =>
-      selectedKategoriUpdatePlan === ""
-        ? true
-        : d[selectedKategoriUpdatePlan as keyof AuditData]
-    );
+ const filteredData = dataList
+  .filter((d) => (statusTab === "" ? true : d.status === statusTab))
+  .filter((d) =>
+    searchPicUpdatePlan === ""
+      ? true
+      : Array.isArray(d.pic)
+      ? d.pic.includes(searchPicUpdatePlan)
+      : d.pic === searchPicUpdatePlan
+  )
+  .filter((d) =>
+    selectedYearUpdatePlan === ""
+      ? true
+      : d.tahun === selectedYearUpdatePlan
+  )
+  .filter((d) =>
+    selectedBulanUpdatePlan === ""
+      ? true
+      : d.bulan === selectedBulanUpdatePlan
+  )
+  // 🔥 FILTER TANGGAL (AKHIRNYA NYAMBUNG)
+ .filter((d) => {
+  if (!filterTanggalAwal && !filterTanggalAkhir) return true;
+
+  const range = parseTanggalRange(d.tanggal_estimasi_full);
+  if (!range) return false;
+
+  const filterStart = filterTanggalAwal
+    ? new Date(new Date(filterTanggalAwal).setHours(0, 0, 0, 0))
+    : null;
+
+  const filterEnd = filterTanggalAkhir
+    ? new Date(new Date(filterTanggalAkhir).setHours(23, 59, 59, 999))
+    : null;
+
+  // 🔥 OVERLAP CHECK
+  if (filterStart && range.end < filterStart) return false;
+  if (filterEnd && range.start > filterEnd) return false;
+
+  return true;
+})
+
+
+  .filter((d) =>
+    selectedKategoriUpdatePlan === ""
+      ? true
+      : Boolean(d[selectedKategoriUpdatePlan as keyof AuditData])
+  );
+
 
   if (filteredData.length === 0) {
     toast.error("Tidak ada data untuk diexport!");
@@ -3244,7 +3279,7 @@ const exportToExcel = () => {
 const exportData = filteredData.map((d) => ({
   "No Laporan": d.no_laporan || "",
   "Tanggal Estimasi": d.tanggal_estimasi_full || "",
-  "Tanggal Realisasi": d.tanggal_realisasi_full || "",
+  "Realisasi": d.tanggal_realisasi_full || "",
   "Minggu": d.minggu || "",
   "PIC": Array.isArray(d.pic) ? d.pic.join(", ") : d.pic || "",
   "Team": Array.isArray(d.team) ? d.team.join(", ") : d.team || "",
@@ -6309,7 +6344,7 @@ onClick={() => {
       {/* Header */}
       <div className="flex justify-between items-center pb-4 border-b border-blue-100">
         <h2 className="text-2xl font-semibold text-blue-700">
-          Edit Data Plan Stock Opname
+          Edit Data Sales Order
         </h2>
         <button
           onClick={() => setShowEditModal(false)}
@@ -6333,52 +6368,35 @@ onClick={() => {
     </h3>
 
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-{/* Tanggal Estimasi */}
-<div>
-  <label className="text-sm font-medium text-slate-700">
-    Tanggal Estimasi
-  </label>
-<DatePicker
-  selectsRange
-  startDate={estimasiRange[0]}
-  endDate={estimasiRange[1]}
-  onChange={(update) => {
-    const [start, end] = update as [Date | null, Date | null];
-    setEstimasiRange([start, end]);
+      {/* Tanggal Estimasi */}
+      <div>
+        <label className="text-sm font-medium text-slate-700">
+          Tanggal Estimasi
+        </label>
+        <DatePicker
+          selectsRange
+          startDate={estimasiRange[0]}
+          endDate={estimasiRange[1]}
+          onChange={(update) => {
+            const [start, end] = update as [Date | null, Date | null];
+            setEstimasiRange([start, end]);
 
-    const value =
-      start && end
-        ? `${formatToDDMMYYYY(start)} - ${formatToDDMMYYYY(end)}`
-        : start
-        ? formatToDDMMYYYY(start)
-        : "";
-
-    setEditingData((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        tanggal_estimasi_full: value,
-      };
-    });
-
-    setDataList((prev) =>
-      prev.map((item) =>
-        item.id === editingData?.id
-          ? { ...item, tanggal_estimasi_full: value }
-          : item
-      )
-    );
-  }}
-  dateFormat="dd/MM/yyyy"
-  placeholderText="Pilih rentang tanggal"
-  isClearable
-  renderCustomHeader={renderMonthYearHeader}
-  className="w-full border border-slate-300 p-2 rounded-lg"
-/>
-
-</div>
-
-
+            setEditingData({
+              ...editingData,
+              tanggal_estimasi_full:
+                start && end
+                  ? `${formatToDDMMYYYY(start)} - ${formatToDDMMYYYY(end)}`
+                  : start
+                  ? formatToDDMMYYYY(start)
+                  : "",
+            });
+          }}
+          dateFormat="dd/MM/yyyy"
+          placeholderText="Pilih rentang tanggal"
+          isClearable
+          className="w-full border border-slate-300 p-2 rounded-lg"
+        />
+      </div>
 
       {/* Minggu */}
       <div>
@@ -6393,52 +6411,35 @@ onClick={() => {
         />
       </div>
 
-{/* Tanggal Realisasi */}
-<div>
-  <label className="text-sm font-medium text-slate-700">
-    Tanggal Realisasi
-  </label>
+      {/* Tanggal Realisasi */}
+      <div>
+        <label className="text-sm font-medium text-slate-700">
+          Tanggal Realisasi
+        </label>
+        <DatePicker
+          selectsRange
+          startDate={realisasiRange[0]}
+          endDate={realisasiRange[1]}
+          onChange={(update) => {
+            const [start, end] = update as [Date | null, Date | null];
+            setRealisasiRange([start, end]);
 
-<DatePicker
-  selectsRange
-  startDate={realisasiRange[0]}
-  endDate={realisasiRange[1]}
-  onChange={(update) => {
-    const [start, end] = update as [Date | null, Date | null];
-    setRealisasiRange([start, end]);
-
-    const value =
-      start && end
-        ? `${formatToDDMMYYYY(start)} - ${formatToDDMMYYYY(end)}`
-        : start
-        ? formatToDDMMYYYY(start)
-        : "";
-
-    setEditingData((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        tanggal_realisasi_full: value,
-      };
-    });
-
-    setDataList((prev) =>
-      prev.map((item) =>
-        item.id === editingData?.id
-          ? { ...item, tanggal_realisasi_full: value }
-          : item
-      )
-    );
-  }}
-  dateFormat="dd/MM/yyyy"
-  placeholderText="Pilih rentang tanggal"
-  isClearable
-  renderCustomHeader={renderMonthYearHeader}
-  className="w-full border border-slate-300 p-2 rounded-lg"
-/>
-
-</div>
-
+            setEditingData({
+              ...editingData,
+              realisasi:
+                start && end
+                  ? `${formatToDDMMYYYY(start)} - ${formatToDDMMYYYY(end)}`
+                  : start
+                  ? formatToDDMMYYYY(start)
+                  : "",
+            });
+          }}
+          dateFormat="dd/MM/yyyy"
+          placeholderText="Pilih rentang tanggal"
+          isClearable
+          className="w-full border border-slate-300 p-2 rounded-lg"
+        />
+      </div>
     </div>
   </div>
 </div>
