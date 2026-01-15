@@ -776,7 +776,7 @@ const [filterNoLaporanUpdate, setFilterNoLaporanUpdate] = useState<string>("");
 const [expandedRowId, setExpandedRowId] = useState<number | null>(null);
 const [approvalMonthFilter, setApprovalMonthFilter] = useState<string>("");
   
-const [updatePlanData, setUpdatePlanData] = useState<UpdatePlanItem[]>([]);
+
 const [notes, setNotes] = useState("");
 
 
@@ -5272,7 +5272,7 @@ onClick={(data: any) => {
 
 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-  {/* === Cabang & Anak Cabang (1 CARD) === */}
+
 {/* === Cabang & Anak Cabang === */}
 <div className="md:col-span-1">
   <label className="block text-sm font-medium text-slate-700 mb-2">
