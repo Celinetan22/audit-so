@@ -3162,6 +3162,7 @@ const handleToggleStatus = async (
 
 
 
+
 const exportToExcel = () => {
   const filteredData = dataList
     .filter((d) => (statusTab === "" ? true : d.status === statusTab))
@@ -3186,7 +3187,7 @@ const exportToExcel = () => {
 const exportData = filteredData.map((d) => ({
   "No Laporan": d.no_laporan || "",
   "Tanggal Estimasi": d.tanggal_estimasi_full || "",
-  "Realisasi": d.tanggal_realisasi_full || "",
+  "Tanggal Realisasi": d.tanggal_realisasi_full || "",
   "Minggu": d.minggu || "",
   "PIC": Array.isArray(d.pic) ? d.pic.join(", ") : d.pic || "",
   "Team": Array.isArray(d.team) ? d.team.join(", ") : d.team || "",
