@@ -6309,7 +6309,7 @@ onClick={() => {
       {/* Header */}
       <div className="flex justify-between items-center pb-4 border-b border-blue-100">
         <h2 className="text-2xl font-semibold text-blue-700">
-          Edit Data Sales Order
+          Edit Data Plan Stock Opname
         </h2>
         <button
           onClick={() => setShowEditModal(false)}
