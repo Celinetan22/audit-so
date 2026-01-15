@@ -203,6 +203,63 @@ const AREA_CHANNEL_GROUPS = {
   whz: ["whz"],
 };
 
+const renderMonthYearHeader = ({
+  date,
+  changeYear,
+  changeMonth,
+  decreaseMonth,
+  increaseMonth,
+  prevMonthButtonDisabled,
+  nextMonthButtonDisabled,
+}: any) => (
+  <div className="flex items-center justify-between px-2 py-1">
+    <button
+      onClick={decreaseMonth}
+      disabled={prevMonthButtonDisabled}
+    >
+      ‹
+    </button>
+
+    <div className="flex gap-2">
+      {/* BULAN */}
+      <select
+        value={date.getMonth()}
+        onChange={(e) => changeMonth(Number(e.target.value))}
+        className="border rounded px-1 text-sm"
+      >
+        {[
+          "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
+          "Jul", "Agu", "Sep", "Okt", "Nov", "Des",
+        ].map((m, i) => (
+          <option key={m} value={i}>{m}</option>
+        ))}
+      </select>
+
+      {/* TAHUN */}
+      <select
+        value={date.getFullYear()}
+        onChange={(e) => changeYear(Number(e.target.value))}
+        className="border rounded px-1 text-sm"
+      >
+        {Array.from({ length: 20 }, (_, i) => {
+          const year = new Date().getFullYear() - 10 + i;
+          return (
+            <option key={year} value={year}>
+              {year}
+            </option>
+          );
+        })}
+      </select>
+    </div>
+
+    <button
+      onClick={increaseMonth}
+      disabled={nextMonthButtonDisabled}
+    >
+      ›
+    </button>
+  </div>
+);
 
 
 
@@ -6276,35 +6333,52 @@ onClick={() => {
     </h3>
 
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {/* Tanggal Estimasi */}
-      <div>
-        <label className="text-sm font-medium text-slate-700">
-          Tanggal Estimasi
-        </label>
-        <DatePicker
-          selectsRange
-          startDate={estimasiRange[0]}
-          endDate={estimasiRange[1]}
-          onChange={(update) => {
-            const [start, end] = update as [Date | null, Date | null];
-            setEstimasiRange([start, end]);
+{/* Tanggal Estimasi */}
+<div>
+  <label className="text-sm font-medium text-slate-700">
+    Tanggal Estimasi
+  </label>
+<DatePicker
+  selectsRange
+  startDate={estimasiRange[0]}
+  endDate={estimasiRange[1]}
+  onChange={(update) => {
+    const [start, end] = update as [Date | null, Date | null];
+    setEstimasiRange([start, end]);
 
-            setEditingData({
-              ...editingData,
-              tanggal_estimasi_full:
-                start && end
-                  ? `${formatToDDMMYYYY(start)} - ${formatToDDMMYYYY(end)}`
-                  : start
-                  ? formatToDDMMYYYY(start)
-                  : "",
-            });
-          }}
-          dateFormat="dd/MM/yyyy"
-          placeholderText="Pilih rentang tanggal"
-          isClearable
-          className="w-full border border-slate-300 p-2 rounded-lg"
-        />
-      </div>
+    const value =
+      start && end
+        ? `${formatToDDMMYYYY(start)} - ${formatToDDMMYYYY(end)}`
+        : start
+        ? formatToDDMMYYYY(start)
+        : "";
+
+    setEditingData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        tanggal_estimasi_full: value,
+      };
+    });
+
+    setDataList((prev) =>
+      prev.map((item) =>
+        item.id === editingData?.id
+          ? { ...item, tanggal_estimasi_full: value }
+          : item
+      )
+    );
+  }}
+  dateFormat="dd/MM/yyyy"
+  placeholderText="Pilih rentang tanggal"
+  isClearable
+  renderCustomHeader={renderMonthYearHeader}
+  className="w-full border border-slate-300 p-2 rounded-lg"
+/>
+
+</div>
+
+
 
       {/* Minggu */}
       <div>
@@ -6319,35 +6393,52 @@ onClick={() => {
         />
       </div>
 
-      {/* Tanggal Realisasi */}
-      <div>
-        <label className="text-sm font-medium text-slate-700">
-          Tanggal Realisasi
-        </label>
-        <DatePicker
-          selectsRange
-          startDate={realisasiRange[0]}
-          endDate={realisasiRange[1]}
-          onChange={(update) => {
-            const [start, end] = update as [Date | null, Date | null];
-            setRealisasiRange([start, end]);
+{/* Tanggal Realisasi */}
+<div>
+  <label className="text-sm font-medium text-slate-700">
+    Tanggal Realisasi
+  </label>
 
-            setEditingData({
-              ...editingData,
-              realisasi:
-                start && end
-                  ? `${formatToDDMMYYYY(start)} - ${formatToDDMMYYYY(end)}`
-                  : start
-                  ? formatToDDMMYYYY(start)
-                  : "",
-            });
-          }}
-          dateFormat="dd/MM/yyyy"
-          placeholderText="Pilih rentang tanggal"
-          isClearable
-          className="w-full border border-slate-300 p-2 rounded-lg"
-        />
-      </div>
+<DatePicker
+  selectsRange
+  startDate={realisasiRange[0]}
+  endDate={realisasiRange[1]}
+  onChange={(update) => {
+    const [start, end] = update as [Date | null, Date | null];
+    setRealisasiRange([start, end]);
+
+    const value =
+      start && end
+        ? `${formatToDDMMYYYY(start)} - ${formatToDDMMYYYY(end)}`
+        : start
+        ? formatToDDMMYYYY(start)
+        : "";
+
+    setEditingData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        tanggal_realisasi_full: value,
+      };
+    });
+
+    setDataList((prev) =>
+      prev.map((item) =>
+        item.id === editingData?.id
+          ? { ...item, tanggal_realisasi_full: value }
+          : item
+      )
+    );
+  }}
+  dateFormat="dd/MM/yyyy"
+  placeholderText="Pilih rentang tanggal"
+  isClearable
+  renderCustomHeader={renderMonthYearHeader}
+  className="w-full border border-slate-300 p-2 rounded-lg"
+/>
+
+</div>
+
     </div>
   </div>
 </div>
