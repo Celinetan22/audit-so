@@ -774,7 +774,9 @@ const parseDDMMYYYYToDate = (val?: string | null) => {
 
 
   const [modernOptions, setModernOptions] = useState<{ id: number; name: string }[]>([]);
-  const [reportFilesMap, setReportFilesMap] = useState<Record<string, boolean>>({});
+const [reportFilesMap, setReportFilesMap] =
+  useState<Record<number, boolean>>({});
+
   const [originalNoLaporan, setOriginalNoLaporan] = useState<string | null>(null);
   const [filterNoLaporan, setFilterNoLaporan] = useState<"" | "ada" | "belum">("");
 const [filterNoLaporanUpdate, setFilterNoLaporanUpdate] = useState<string>("");
@@ -1930,15 +1932,25 @@ const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
 };
 
 
-const handleDeleteFile = async (fileId: number, fileUrl: string, noLaporan: string) => {
+const handleDeleteFile = async (
+  fileId: number,
+  fileUrl: string,
+  reportId: number
+) => {
   try {
     setIsDeleting(fileId);
 
-    const url = new URL(fileUrl);
-    const path = url.pathname.split("/storage/v1/object/public/report-plan/")[1];
+    // ===============================
+    // 🔹 Ambil path dari URL
+    // ===============================
+    const path = new URL(fileUrl)
+      .pathname.split("/storage/v1/object/public/report-plan/")[1];
+
     if (!path) return;
 
-    // Hapus file di storage
+    // ===============================
+    // 🔹 Hapus file di storage
+    // ===============================
     const { error: storageError } = await supabase.storage
       .from("report-plan")
       .remove([path]);
@@ -1948,32 +1960,36 @@ const handleDeleteFile = async (fileId: number, fileUrl: string, noLaporan: stri
       return;
     }
 
-    // Hapus record DB
-    const { data, error: dbError } = await supabase
+    // ===============================
+    // 🔹 Hapus record DB
+    // ===============================
+    const { error: dbError } = await supabase
       .from("report_files")
       .delete()
-      .eq("id", fileId)
-      .select();
+      .eq("id", fileId);
 
     if (dbError) {
       toast.error("❌ Gagal hapus record di database");
       return;
     }
 
-    // Update front-end
+    // ===============================
+    // 🔹 Update state fileHistory
+    // ===============================
     setFileHistory((prev) => prev.filter((f) => f.id !== fileId));
 
-    // 🔹 Update reportFilesMap
+    // ===============================
+    // 🔹 Update reportFilesMap (PAKAI report_id)
+    // ===============================
     setReportFilesMap((prev) => {
-      const newMap = { ...prev };
-      // cek apakah masih ada file untuk no_laporan ini
       const stillHasFile = fileHistory.some(
-        (f) => f.no_laporan === noLaporan && f.id !== fileId
+        (f) => f.report_id === reportId && f.id !== fileId
       );
-      if (!stillHasFile) {
-        newMap[noLaporan] = false; // kalau ga ada file, tombol biru
-      }
-      return newMap;
+
+      return {
+        ...prev,
+        [reportId]: stillHasFile,
+      };
     });
 
     toast.success("✅ File berhasil dihapus");
@@ -1990,6 +2006,7 @@ const handleDeleteFile = async (fileId: number, fileUrl: string, noLaporan: stri
 
 
 
+
   // Edit mode
   const [editIndex, setEditIndex] = useState<number | null>(null); // Perbaikan tipe
   const [editData, setEditData] = useState<AuditData | null>(null); // Perbaikan tipe
@@ -1999,15 +2016,11 @@ const [fileHistory, setFileHistory] = useState<any[]>([]);
 
 
 
-const fetchFiles = async () => {
-  if (!selectedApproval?.no_laporan) return;
-
-  console.log("📂 Fetch file for:", selectedApproval.no_laporan);
-
+const fetchFiles = async (reportId: number) => {
   const { data, error } = await supabase
     .from("report_files")
     .select("*")
-    .eq("no_laporan", selectedApproval.no_laporan)
+    .eq("report_id", reportId)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -2015,7 +2028,6 @@ const fetchFiles = async () => {
     return;
   }
 
-  console.log("✅ File history:", data);
   setFileHistory(data || []);
 };
 
@@ -2024,9 +2036,10 @@ const fetchFiles = async () => {
 
 
 useEffect(() => {
-  if (!selectedApproval?.no_laporan) return;
-  fetchFiles();
-}, [selectedApproval?.no_laporan]);
+  if (!selectedApproval?.id) return;
+  fetchFiles(selectedApproval.id);
+}, [selectedApproval?.id]);
+
 
 
 const handleChange = (
@@ -3551,14 +3564,17 @@ const matchStatus =
         : true;
 
 
-        const matchReportStatus = (() => {
-  if (reportStatusFilter === "uploaded") {
-    return reportFilesMap[d.no_laporan ?? ""] === true;
-  } else if (reportStatusFilter === "notUploaded") {
-    return !reportFilesMap[d.no_laporan ?? ""];
-  }
-  return true; // "all"
+const matchReportStatus = (() => {
+  if (d.id == null) return false; // ⛔ tidak valid
+
+  const hasFile = reportFilesMap[d.id] === true;
+
+  if (reportStatusFilter === "uploaded") return hasFile;
+  if (reportStatusFilter === "notUploaded") return !hasFile;
+  return true;
 })();
+
+
 
         // ===============================
 // 🗓️ FILTER TANGGAL (DATE PICKER)
@@ -3774,8 +3790,6 @@ const filteredFullData = dataList
 
 
 
-
-  
 const handleDeleteUpdatePlan = async (plan: AuditData) => {
   const yakin = window.confirm(
     `⚠️ Yakin ingin menghapus data Update Plan: ${plan.no_laporan || "-"} ?`
@@ -3785,19 +3799,16 @@ const handleDeleteUpdatePlan = async (plan: AuditData) => {
   const toastId = toast.loading("⏳ Menghapus data...");
 
   try {
-    const noLaporan = plan.no_laporan?.trim();
-    if (!noLaporan) {
-      toast.error("❌ Tidak bisa hapus: No Laporan kosong!", { id: toastId });
-      return;
-    }
+    
+    const reportId = plan.id;
 
     // ===============================
-    // 🔹 Ambil semua file terkait dari report_files
+    // 🔹 Ambil semua file BERDASARKAN report_id
     // ===============================
     const { data: files, error: fetchFilesError } = await supabase
       .from("report_files")
       .select("id, file_url")
-      .eq("no_laporan", noLaporan);
+      .eq("report_id", reportId);
 
     if (fetchFilesError) {
       toast.error("❌ Gagal ambil file terkait!", { id: toastId });
@@ -3807,86 +3818,62 @@ const handleDeleteUpdatePlan = async (plan: AuditData) => {
     // ===============================
     // 🔹 Hapus file dari storage & DB
     // ===============================
-    if (files && files.length > 0) {
-      for (const f of files) {
-        if (f.file_url) {
-          try {
-            // Ambil path dari URL storage
-            const url = new URL(f.file_url);
-            const path = url.pathname.split("/storage/v1/object/public/report-plan/")[1];
+    for (const f of files || []) {
+      if (!f.file_url) continue;
 
-            if (path) {
-              const { error: storageError } = await supabase.storage
-                .from("report-plan")
-                .remove([path]);
+      try {
+        const path = new URL(f.file_url)
+          .pathname.split("/storage/v1/object/public/report-plan/")[1];
 
-              if (storageError) {
-                console.warn(`⚠️ Gagal hapus file di storage: ${f.file_url}`);
-              }
-            }
-
-            // Hapus record di report_files
-            const { error: dbFileError } = await supabase
-              .from("report_files")
-              .delete()
-              .eq("id", f.id);
-
-            if (dbFileError) {
-              console.warn(`⚠️ Gagal hapus record file DB: ${f.file_url}`);
-            }
-          } catch (err) {
-            console.error("⚠️ Error hapus file:", f.file_url, err);
-          }
+        if (path) {
+          await supabase.storage.from("report-plan").remove([path]);
         }
+
+        await supabase.from("report_files").delete().eq("id", f.id);
+      } catch (err) {
+        console.warn("⚠️ Gagal hapus file:", f.file_url);
       }
     }
 
     // ===============================
-    //   🗑️ DELETE approvals_status
+    // 🗑️ DELETE approvals_status
     // ===============================
     await supabase
       .from("approvals_status")
       .delete()
-      .eq("report_id", plan.id);
+      .eq("report_id", reportId);
 
     // ===============================
-    //   🗑️ DELETE audit_full
+    // 🗑️ DELETE audit_full (PAKAI ID)
     // ===============================
-    const { error: deleteError } = await supabase
+    const { error } = await supabase
       .from("audit_full")
       .delete()
-      .eq("no_laporan", noLaporan);
+      .eq("id", reportId);
 
-    if (deleteError) {
-      toast.error("Gagal hapus data!", { id: toastId });
+    if (error) {
+      toast.error("❌ Gagal hapus data!", { id: toastId });
       return;
     }
 
     // ===============================
-    //   🔥 RENUMBER NO LAPORAN
+    // 🔢 RENUMBER no_laporan
     // ===============================
-    const [prefix, yearShort, monthNum] = noLaporan.split("/");
-    await renumberNoLaporan(
-      prefix as "RN" | "SOV" | "SONV",
-      yearShort,
-      monthNum
-    );
+    if (plan.no_laporan) {
+      const [prefix, yearShort, monthNum] = plan.no_laporan.split("/");
+      await renumberNoLaporan(
+        prefix as "RN" | "SOV" | "SONV",
+        yearShort,
+        monthNum
+      );
+    }
 
-    // ===============================
-    //   🔄 FETCH DATA TERBARU
-    // ===============================
     await fetchData();
 
-    toast.success("✅ Data & file terkait berhasil dihapus!", {
-      id: toastId,
-      duration: 2000,
-    });
+    toast.success("✅ Data & file berhasil dihapus!", { id: toastId });
   } catch (err) {
-    console.error("🚨 Error hapus Update Plan:", err);
-    toast.error("Terjadi kesalahan!", {
-      id: toastId,
-      duration: 2000,
-    });
+    console.error(err);
+    toast.error("❌ Terjadi kesalahan!", { id: toastId });
   }
 };
 
@@ -3959,22 +3946,23 @@ useEffect(() => {
 
 
 // --- useEffect untuk fetch map dari Supabase ---
+// --- useEffect untuk fetch map file per report (PAKAI report_id) ---
 useEffect(() => {
   const fetchReportFilesMap = async () => {
     const { data, error } = await supabase
       .from("report_files")
-      .select("no_laporan");
+      .select("report_id");
 
     if (error) {
       console.error("❌ fetchReportFilesMap error:", error.message);
       return;
     }
 
-    const map: Record<string, boolean> = {};
+    const map: Record<number, boolean> = {};
 
     (data || []).forEach((f) => {
-      if (f.no_laporan) {
-        map[f.no_laporan] = true; // ✅ laporan ini punya file
+      if (f.report_id != null) {
+        map[f.report_id] = true; // ✅ laporan ini punya file
       }
     });
 
@@ -4948,92 +4936,93 @@ onClick={(data: any) => {
 
 {/* Form Detail Report */}
 <form
-  onSubmit={async (e) => {
-    e.preventDefault();
-    setIsUploading(true); // 🔹 mulai loading
+ onSubmit={async (e) => {
+  e.preventDefault();
+  setIsUploading(true);
 
-    try {
-      let fileUrl: string | null = null;
+  try {
+    // ===============================
+    // 🔹 VALIDASI REPORT ID
+    // ===============================
+    const reportId = selectedApproval?.id;
 
-      // Upload file
-      if (selectedFile) {
-        const { data, error } = await supabase.storage
-          .from("report-plan")
-          .upload(`reports/${Date.now()}_${selectedFile.name}`, selectedFile);
-
-        if (error) {
-          toast.error(error.message);
-          setIsUploading(false);
-          return;
-        }
-
-        const { data: publicUrl } = supabase.storage
-          .from("report-plan")
-          .getPublicUrl(data.path);
-
-        fileUrl = publicUrl.publicUrl;
-      }
-
-      // Simpan ke database
-      const { data: insertedFile, error: fileError } = await supabase
-        .from("report_files")
-        .insert([
-          {
-            no_laporan: selectedApproval.no_laporan,
-            report_description: description,
-            file_url: fileUrl,
-          },
-        ])
-        .select()
-        .single();
-
-      if (fileError) {
-        toast.error(fileError.message);
-        setIsUploading(false);
-        return;
-      }
-
-
-// 🔹 update map di sini
-const noLaporan = selectedApproval?.no_laporan;
-if (noLaporan) {
-  setReportFilesMap((prev) => ({
-    ...prev,
-    [noLaporan]: true,
-  }));
-}
-// 🔹 Update fileHistory agar history otomatis tampil
-setFileHistory((prev) => [
-  insertedFile,  // file baru
-  ...prev,       // file lama
-]);
-
-      // Update audit_full
-      const { error: auditError } = await supabase
-        .from("audit_full")
-        .update({
-          description,
-          file_url: fileUrl,
-        })
-        .eq("no_laporan", reportName);
-
-      if (auditError) {
-        toast.error(auditError.message);
-        setIsUploading(false);
-        return;
-      }
-
-      toast.success("✅ Report berhasil disimpan");
-      setReportName("");
-      setDescription("");
-      setSelectedFile(null);
-    } catch (err) {
-      console.error(err);
-      toast.error("❌ Gagal simpan report");
-    } finally {
-      setIsUploading(false); // 🔹 selesai loading
+    if (!reportId) {
+      toast.error("❌ Report ID tidak ditemukan");
+      setIsUploading(false);
+      return;
     }
-  }}
+
+    let fileUrl: string | null = null;
+
+    // ===============================
+    // 🔹 UPLOAD FILE (PAKAI report_id)
+    // ===============================
+    if (selectedFile) {
+      const filePath = `${reportId}/${crypto.randomUUID()}-${selectedFile.name}`;
+
+      const { data, error } = await supabase.storage
+        .from("report-plan")
+        .upload(filePath, selectedFile);
+
+      if (error) throw error;
+
+      const { data: publicUrl } = supabase.storage
+        .from("report-plan")
+        .getPublicUrl(data.path);
+
+      fileUrl = publicUrl.publicUrl;
+    }
+
+    // ===============================
+    // 🔹 INSERT report_files
+    // ===============================
+    const { data: insertedFile, error: fileError } = await supabase
+      .from("report_files")
+      .insert({
+        report_id: reportId,
+        report_description: description,
+        file_url: fileUrl,
+        original_name: selectedFile?.name,
+      })
+      .select()
+      .single();
+
+    if (fileError) throw fileError;
+
+    // ===============================
+    // 🔹 UPDATE STATE
+    // ===============================
+    setReportFilesMap((prev) => ({
+      ...prev,
+      [reportId]: true,
+    }));
+
+    setFileHistory((prev) => [insertedFile, ...prev]);
+
+    // ===============================
+    // 🔹 UPDATE audit_full
+    // ===============================
+    const { error: auditError } = await supabase
+      .from("audit_full")
+      .update({
+        description,
+        file_url: fileUrl,
+      })
+      .eq("id", reportId);
+
+    if (auditError) throw auditError;
+
+    toast.success("✅ Report berhasil disimpan");
+    setDescription("");
+    setSelectedFile(null);
+  } catch (err) {
+    console.error(err);
+    toast.error("❌ Gagal simpan report");
+  } finally {
+    setIsUploading(false);
+  }
+}}
+      
 >
 
 
@@ -5129,7 +5118,7 @@ setFileHistory((prev) => [
                   <td className="px-4 py-2 text-center">
 <button
   type="button"
-  onClick={() => handleDeleteFile(f.id, f.file_url, f.no_laporan)}
+  onClick={() => handleDeleteFile(f.id, f.file_url, f.report_id)}
   className={`ml-2 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm ${
     isDeleting === f.id ? "bg-gray-400 cursor-not-allowed" : ""
   }`}
@@ -5832,77 +5821,86 @@ const newDataList = dataList.map((d) =>
     const toastId = toast.loading("⏳ Menghapus data...");
 
     try {
-      // Ambil no_laporan yang akan dihapus
+      // ===============================
+      // 🔹 Ambil report_id yang akan dihapus
+      // ===============================
       const idsToDelete = selectedIndices
         .map((idx) => filteredAndSortedUpdatePlanData[idx]?.id)
-        .filter((id) => id !== undefined) as number[];
+        .filter((id): id is number => typeof id === "number");
 
-      const plansToDelete = dataList.filter((d) =>
-        idsToDelete.includes(d.id!)
-      );
+      if (idsToDelete.length === 0) {
+        toast.error("❌ Tidak ada data valid untuk dihapus", { id: toastId });
+        return;
+      }
 
-      // 1️⃣ Hapus semua file terkait di report_files + storage
-      for (const plan of plansToDelete) {
-        const noLaporan = plan.no_laporan?.trim();
-        if (!noLaporan) continue;
+      // ===============================
+      // 🔹 Ambil SEMUA file terkait (1 query)
+      // ===============================
+      const { data: files, error: fileError } = await supabase
+        .from("report_files")
+        .select("id, file_url, report_id")
+        .in("report_id", idsToDelete);
 
-        const { data: files, error: fileError } = await supabase
-          .from("report_files")
-          .select("*")
-          .eq("no_laporan", noLaporan);
+      if (fileError) {
+        console.error("Fetch report_files error:", fileError.message);
+      }
 
-        if (fileError) {
-          console.error("Error fetch report_files:", fileError.message);
-          continue;
-        }
+      // ===============================
+      // 🔹 Hapus file di STORAGE
+      // ===============================
+      for (const f of files || []) {
+        if (!f.file_url) continue;
 
-        for (const f of files) {
-          if (f.file_url) {
-            try {
-              const url = new URL(f.file_url);
-              const path = url.pathname.split("/storage/v1/object/public/report-plan/")[1];
-              if (path) {
-                const { error: storageError } = await supabase
-                  .storage.from("report-plan")
-                  .remove([path]);
-                if (storageError) console.error("Storage delete error:", storageError.message);
-              }
-            } catch (err) {
-              console.error("Error delete storage file:", err);
-            }
+        try {
+          const path = new URL(f.file_url)
+            .pathname.split("/storage/v1/object/public/report-plan/")[1];
+
+          if (path) {
+            await supabase.storage
+              .from("report-plan")
+              .remove([path]);
           }
-
-          // Hapus record DB
-          const { error: dbError } = await supabase
-            .from("report_files")
-            .delete()
-            .eq("no_laporan", noLaporan)
-            .eq("file_url", f.file_url);
-          if (dbError) console.error("DB delete error:", dbError.message);
+        } catch (err) {
+          console.error("Error delete storage file:", err);
         }
       }
 
-      // 2️⃣ Hapus approvals_status
-      const { error: approvalError } = await supabase
+      // ===============================
+      // 🔹 Hapus report_files (DB)
+      // ===============================
+      await supabase
+        .from("report_files")
+        .delete()
+        .in("report_id", idsToDelete);
+
+      // ===============================
+      // 🔹 Hapus approvals_status
+      // ===============================
+      await supabase
         .from("approvals_status")
         .delete()
         .in("report_id", idsToDelete);
-      if (approvalError) console.error("Delete approvals_status error:", approvalError.message);
 
-      // 3️⃣ Hapus audit_full
+      // ===============================
+      // 🔹 Hapus audit_full
+      // ===============================
       const { error: auditError } = await supabase
         .from("audit_full")
         .delete()
         .in("id", idsToDelete);
+
       if (auditError) throw new Error(auditError.message);
 
-      // 4️⃣ Update front-end
-      const newDataList = dataList.filter(d => !idsToDelete.includes(d.id!));
-      setDataList(newDataList);
+      // ===============================
+      // 🔹 Update frontend state
+      // ===============================
+      setDataList((prev) =>
+        prev.filter((d) => !idsToDelete.includes(d.id!))
+      );
       setSelectedIndices([]);
 
-      toast.success("✅ Semua data dan file terkait berhasil dihapus!", { id: toastId });
-    } catch (err: any) {
+      toast.success("✅ Semua data & file berhasil dihapus!", { id: toastId });
+    } catch (err) {
       console.error("Batch delete error:", err);
       toast.error("❌ Gagal hapus data!", { id: toastId });
     }
@@ -5914,6 +5912,7 @@ const newDataList = dataList.map((d) =>
   <Trash2 className="w-4 h-4" />
   Hapus
 </button>
+
 
     </div>
   </div>
@@ -6487,8 +6486,8 @@ paginatedUpdatePlanData.map((d, i) => (
       setSelectedApproval(d);
       setActivePage("uploadReport");
     }}
-    className={`px-3 py-1.5 rounded-lg text-sm text-white shadow ${
-  reportFilesMap[d.no_laporan ?? ""]
+className={`px-3 py-1.5 rounded-lg text-sm text-white shadow ${
+  d.id != null && reportFilesMap[d.id]
     ? "bg-green-600 hover:bg-green-700"
     : "bg-blue-600 hover:bg-blue-700"
 }`}
@@ -6497,6 +6496,7 @@ paginatedUpdatePlanData.map((d, i) => (
     Report
   </button>
 </td>
+
 
 
 
