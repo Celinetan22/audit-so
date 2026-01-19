@@ -651,8 +651,8 @@ const [serviceCenterOptions, setServiceCenterOptions] = useState<any[]>([]);
 const [filterTanggalRange, setFilterTanggalRange] =
   useState<[Date | null, Date | null]>([null, null]);
 
-const [filterTanggalAwal, filterTanggalAkhir] = filterTanggalRange;
-
+const [filterTanggalAwal, setFilterTanggalAwal] = useState<Date | null>(null);
+const [filterTanggalAkhir, setFilterTanggalAkhir] = useState<Date | null>(null);
 
 const parseTanggalToDate = (val?: string | null) => {
   if (!val) return null;
@@ -1285,18 +1285,18 @@ useEffect(() => {
 const fetchReportFilesMap = async () => {
   const { data, error } = await supabase
     .from("report_files")
-    .select("no_laporan");
+    .select("report_id");
 
   if (error) {
     console.error("❌ fetchReportFilesMap error:", error.message);
     return;
   }
 
-  const map: Record<string, boolean> = {};
+  const map: Record<number, boolean> = {};
 
   data?.forEach((row) => {
-    if (row.no_laporan) {
-      map[row.no_laporan] = true;
+    if (typeof row.report_id === "number") {
+      map[row.report_id] = true;
     }
   });
 
@@ -5950,16 +5950,21 @@ const newDataList = dataList.map((d) =>
   </select>
 
   {/* Filter Tanggal (Range) */}
-  <DatePicker
-    selectsRange
-    startDate={filterTanggalAwal}
-    endDate={filterTanggalAkhir}
-    onChange={(update) => setFilterTanggalRange(update)}
-    isClearable
-    placeholderText="Filter Tanggal dan Bulan"
-    dateFormat="dd/MM/yyyy"
-    className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm w-[180px]
-               focus:ring-2 focus:ring-blue-400 focus:outline-none transition"
+ <DatePicker
+  selectsRange
+  startDate={filterTanggalAwal}
+  endDate={filterTanggalAkhir}
+  onChange={(dates) => {
+    const [start, end] = dates as [Date | null, Date | null];
+    setFilterTanggalAwal(start);
+    setFilterTanggalAkhir(end);
+  }}
+  isClearable
+  placeholderText="Filter rentang tanggal"
+  dateFormat="dd/MM/yyyy"
+  className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm w-[180px]
+             focus:ring-2 focus:ring-blue-400 focus:outline-none transition"
+
 
     renderCustomHeader={({
       date,
