@@ -2414,37 +2414,39 @@ const hasAtLeastOneKategori = (form: any) => {
   );
 };
 
-
 const handleSubmitAll = async (e: React.FormEvent) => {
   e.preventDefault();
 
+  // ===============================
+  // 🔍 VALIDASI 1 FORM
+  // ===============================
   const validateForm = (form: any) => {
-  const errors: string[] = [];
+    const errors: string[] = [];
 
-  if (form.pic.length === 0 && !form.customPic)
-    errors.push("PIC");
+    if (form.pic.length === 0 && !form.customPic && form.team.length === 0)
+      errors.push("PIC");
 
-  if (!form.tahun || form.tahun.length !== 4)
-    errors.push("Tahun");
+    if (!form.tahun || form.tahun.length !== 4)
+      errors.push("Tahun");
 
-  if (!form.bulan)
-    errors.push("Bulan");
+    if (!form.bulan)
+      errors.push("Bulan");
 
-  if (!form.tanggalAwal && !form.tanggalAkhir)
-    errors.push("Periode Tanggal");
+    if (!form.tanggalAwal && !form.tanggalAkhir)
+      errors.push("Periode Tanggal");
 
-  // 🔥 WAJIB salah satu kategori
-  if (!hasAtLeastOneKategori(form))
-    errors.push("Kategori Area / Channel");
+    // 🔥 Wajib salah satu kategori
+    if (!hasAtLeastOneKategori(form))
+      errors.push("Kategori Area / Channel");
 
-  if (!form.jenisData)
-    errors.push("Jenis Data");
+    if (!form.jenisData)
+      errors.push("Jenis Data");
 
-  return errors;
-};
+    return errors;
+  };
 
-    // ===============================
-  // 🔍 VALIDASI SEMUA FORM DULU
+  // ===============================
+  // 🚫 VALIDASI SEMUA FORM (STOP TOTAL)
   // ===============================
   for (let i = 0; i < formList.length; i++) {
     const errors = validateForm(formList[i]);
@@ -2454,7 +2456,6 @@ const handleSubmitAll = async (e: React.FormEvent) => {
         `Form #${i + 1} belum lengkap: ${errors.join(", ")}`
       );
 
-      // 🔥 ARAHKAN USER KE FORM YANG SALAH
       setTimeout(() => {
         const el = document.querySelectorAll("details")[i];
         el?.setAttribute("open", "true");
@@ -2465,33 +2466,18 @@ const handleSubmitAll = async (e: React.FormEvent) => {
     }
   }
 
-  
   const loadingToast = toast.loading("⏳ Menyimpan semua data...");
 
   try {
     for (const form of formList) {
-      // ===============================
-      //            VALIDASI
-      // ===============================
-      if (form.pic.length === 0 && !form.customPic) {
-        toast.error("Isi minimal satu PIC di salah satu form!");
-        continue;
-      }
+  const tahun = form.tahun ?? "";
 
-      if (!form.bulan) {
-        toast.error("Bulan wajib diisi di setiap form!");
-        continue;
-      }
+  if (tahun.length !== 4) {
+    toast.error("Tahun tidak valid!");
+    return;
+  }
 
-      if (!form.tahun || form.tahun.length !== 4) {
-        toast.error("Tahun tidak valid!");
-        continue;
-      }
-
-      // ===============================
-      //     BULAN & TAHUN
-      // ===============================
-      const yearShort = form.tahun.slice(2);
+  const yearShort = tahun.slice(2);
 
       const monthIndex = monthOrder.findIndex(
         (b) => b.toLowerCase() === form.bulan.toLowerCase()
@@ -2499,13 +2485,13 @@ const handleSubmitAll = async (e: React.FormEvent) => {
 
       if (monthIndex === -1) {
         toast.error("Bulan tidak valid!");
-        continue;
+        return;
       }
 
       const monthNum = String(monthIndex + 1).padStart(2, "0");
 
       // ===============================
-      //     GENERATE NO LAPORAN
+      // 🔢 GENERATE NO LAPORAN
       // ===============================
       const prefix =
         form.jenisData === "rekon"
@@ -2524,19 +2510,18 @@ const handleSubmitAll = async (e: React.FormEvent) => {
 
         if (error) {
           toast.error("Gagal generate nomor laporan");
-          continue;
+          return;
         }
 
         noCounterMap[counterKey] = data?.length ?? 0;
       }
 
       noCounterMap[counterKey] += 1;
-
       const next = String(noCounterMap[counterKey]).padStart(3, "0");
       const noLaporan = `${prefix}/${yearShort}/${monthNum}/${next}`;
 
       // ===============================
-      //        FORMAT TANGGAL
+      // 📅 FORMAT TANGGAL ESTIMASI
       // ===============================
       let tanggalEstimasiFull: string | null = null;
 
@@ -2548,42 +2533,41 @@ const handleSubmitAll = async (e: React.FormEvent) => {
           ? String(form.tanggalAkhir).padStart(2, "0")
           : "";
 
-        if (dayStart && dayEnd) {
+        if (dayStart && dayEnd)
           tanggalEstimasiFull = `${dayStart} - ${dayEnd}/${monthNum}/${form.tahun}`;
-        } else if (dayStart) {
+        else if (dayStart)
           tanggalEstimasiFull = `${dayStart}/${monthNum}/${form.tahun}`;
-        } else if (dayEnd) {
+        else if (dayEnd)
           tanggalEstimasiFull = `${dayEnd}/${monthNum}/${form.tahun}`;
-        }
       }
 
       // ===============================
-      //        FIX PIC & TEAM
+      // 👤 FINAL PIC (ANTI DUPLIKAT)
       // ===============================
-      const allPIC = [
-        ...form.pic,
-        ...(form.customPic
-          ? form.customPic
-              .split(",")
-              .map((x) => x.trim())
-              .filter(Boolean)
-          : []),
-      ];
+const finalPIC = Array.from(
+  new Set([
+    ...form.pic,
+    ...(form.customPic
+      ? form.customPic.split(",").map(x => x.trim()).filter(Boolean)
+      : []),
+  ])
+);
 
-      const finalTeam = allPIC.length === 1 ? allPIC : [];
+const finalTeam = Array.from(
+  new Set(form.team)
+);
 
       // ===============================
-      //         PAYLOAD
+      // 📦 PAYLOAD
       // ===============================
       const payload = {
         no_laporan: noLaporan,
-        pic: allPIC,
+        pic: finalPIC,
         team: finalTeam,
 
         bulan: form.bulan.toUpperCase(),
         minggu: form.minggu,
         tanggal_estimasi_full: tanggalEstimasiFull,
-
         tahun: form.tahun,
 
         jabodetabek: form.jabodetabek,
@@ -2605,9 +2589,9 @@ const handleSubmitAll = async (e: React.FormEvent) => {
       };
 
       // ===============================
-      //        INSERT DB
+      // 🧾 INSERT DB
       // ===============================
-      const { data: insertedRows, error } = await supabase
+      const { data, error } = await supabase
         .from("audit_full")
         .insert([payload])
         .select();
@@ -2615,29 +2599,30 @@ const handleSubmitAll = async (e: React.FormEvent) => {
       if (error) {
         console.error("❌ Insert error:", error.message);
         toast.error("Gagal menyimpan salah satu data!");
-        continue;
+        return;
       }
 
-      const raw = insertedRows?.[0];
+      const raw = data?.[0];
       if (!raw) continue;
 
       // ===============================
-      //        NORMALISASI (UI)
+      // 🧠 NORMALISASI UI
       // ===============================
-      const normalizedNewReport = {
-        ...raw,
-        luarJabodetabek: raw.luar_jabodetabek ?? "",
-        anakCabang: raw.anak_cabang ?? "",
-        jenisData: raw.jenis_data ?? raw.jenisData ?? "",
-      };
-
-      setDataList((prev) => [normalizedNewReport, ...prev]);
+      setDataList((prev) => [
+        {
+          ...raw,
+          luarJabodetabek: raw.luar_jabodetabek ?? "",
+          anakCabang: raw.anak_cabang ?? "",
+          jenisData: raw.jenis_data ?? raw.jenisData ?? "",
+        },
+        ...prev,
+      ]);
     }
 
     toast.success("✅ Semua data berhasil disimpan!", { id: loadingToast });
 
     // ===============================
-    //        RESET FORM
+    // 🔄 RESET FORM
     // ===============================
     setFormList([
       {
@@ -3171,40 +3156,10 @@ async function renumberNoLaporan(
 
 
 const selectedMonth = selectedDashboardBulan || currentMonth;
-const filteredMonthData = dataList.filter(
-  (d) => d.bulan?.toUpperCase() === selectedMonth.toUpperCase()
-);
 
 
 
-const handleStartEdit = (index: number, data: AuditData) => {
-  let parsedPIC: string[] = [];
 
-  try {
-    if (Array.isArray(data.pic)) {
-      // ✅ kalau memang array
-      parsedPIC = data.pic;
-    } else if (typeof (data as any).pic === "string") {
-      // ✅ kalau string JSON
-      const str = (data as any).pic;
-      parsedPIC = JSON.parse(str);
-    }
-  } catch {
-    // ✅ fallback kalau JSON.parse gagal
-    const raw = (data as any).pic;
-    if (typeof raw === "string") {
-      parsedPIC = raw.split(",").map((p) => p.trim());
-    }
-  }
-
-  setEditIndex(index);
-  setEditData({
-    ...data,
-    pic: parsedPIC,
-    minggu: data.minggu || "",
-  });
-  setOriginalNoLaporan(data.no_laporan || null);
-};
 
 const handleSaveEditModal = useCallback(async (data: any) => {
   if (!data) return;
