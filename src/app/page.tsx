@@ -622,6 +622,7 @@ const [luarJaboOptions, setLuarJaboOptions] = useState<any[]>([]);
 const [tradisionalOptions, setTradisionalOptions] = useState<any[]>([]);
 const [warehouseOptions, setWarehouseOptions] = useState<any[]>([]);
 const [serviceCenterOptions, setServiceCenterOptions] = useState<any[]>([]);
+const [selectedMonthUpdatePlan, setSelectedMonthUpdatePlan] = useState("");
 
   
   const [filterBulan, setFilterBulan] = useState(""); // contoh: "MEI"
@@ -646,6 +647,23 @@ const [serviceCenterOptions, setServiceCenterOptions] = useState<any[]>([]);
   const [selectedKategoriMonth, setSelectedKategoriMonth] = useState<string>("JANUARI");
   const [clickedBulan, setClickedBulan] = useState<string | null>(null);
   const [selectedYearStatusPlan, setSelectedYearStatusPlan] = useState("");
+
+
+const monthOptions = [
+  { label: "Januari", value: "01" },
+  { label: "Februari", value: "02" },
+  { label: "Maret", value: "03" },
+  { label: "April", value: "04" },
+  { label: "Mei", value: "05" },
+  { label: "Juni", value: "06" },
+  { label: "Juli", value: "07" },
+  { label: "Agustus", value: "08" },
+  { label: "September", value: "09" },
+  { label: "Oktober", value: "10" },
+  { label: "November", value: "11" },
+  { label: "Desember", value: "12" },
+];
+
 
 
 const [filterTanggalRange, setFilterTanggalRange] =
@@ -3527,7 +3545,8 @@ const matchStatus =
       // 📆 FILTER BULAN
       // ===============================
       const normSelectedBulan = normalizeMonthInput(
-        selectedBulanUpdatePlan
+        selectedMonthUpdatePlan
+
       );
       const matchBulan = normSelectedBulan
         ? monthFromEstimasiFull === normSelectedBulan
@@ -5942,6 +5961,22 @@ const newDataList = dataList.map((d) =>
       <option key={year} value={year}>{year}</option>
     ))}
   </select>
+
+{/* Filter Bulan */}
+<select
+  value={selectedMonthUpdatePlan}
+  onChange={(e) => setSelectedMonthUpdatePlan(e.target.value)}
+  className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm
+             focus:ring-2 focus:ring-blue-400 focus:outline-none transition"
+>
+  <option value="">Semua Bulan</option>
+  {monthOptions.map((m) => (
+    <option key={m.value} value={m.value}>
+      {m.label}
+    </option>
+  ))}
+</select>
+
 
   {/* Filter Tanggal (Range) */}
  <DatePicker
