@@ -2397,11 +2397,52 @@ const validateForm = (form: any) => {
   return errors;
 };
 
+const hasAtLeastOneKategori = (form: any) => {
+  const kategoriFields = [
+    form.cabang,
+    form.anakCabang,
+    form.jabodetabek,
+    form.luarJabodetabek,
+    form.modern,
+    form.tradisional,
+    form.warehouse,
+    form.whz,
+  ];
+
+  return kategoriFields.some(
+    (v) => v != null && String(v).trim() !== ""
+  );
+};
+
 
 const handleSubmitAll = async (e: React.FormEvent) => {
   e.preventDefault();
 
-  
+  const validateForm = (form: any) => {
+  const errors: string[] = [];
+
+  if (form.pic.length === 0 && !form.customPic)
+    errors.push("PIC");
+
+  if (!form.tahun || form.tahun.length !== 4)
+    errors.push("Tahun");
+
+  if (!form.bulan)
+    errors.push("Bulan");
+
+  if (!form.tanggalAwal && !form.tanggalAkhir)
+    errors.push("Periode Tanggal");
+
+  // 🔥 WAJIB salah satu kategori
+  if (!hasAtLeastOneKategori(form))
+    errors.push("Kategori Area / Channel");
+
+  if (!form.jenisData)
+    errors.push("Jenis Data");
+
+  return errors;
+};
+
     // ===============================
   // 🔍 VALIDASI SEMUA FORM DULU
   // ===============================
