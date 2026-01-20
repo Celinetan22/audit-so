@@ -2361,9 +2361,70 @@ const handleApprovalUpdate = async (
 const noCounterMap: Record<string, number> = {};
 
 
+
+const validateForm = (form: any) => {
+  const errors: string[] = [];
+
+  if (form.pic.length === 0 && !form.customPic)
+    errors.push("PIC");
+
+  if (!form.tahun || form.tahun.length !== 4)
+    errors.push("Tahun");
+
+  if (!form.bulan)
+    errors.push("Bulan");
+
+  if (!form.tanggalAwal && !form.tanggalAkhir)
+    errors.push("Periode Tanggal");
+
+  // wajib pilih SALAH SATU kategori
+  const hasKategori = [
+    form.cabang,
+    form.jabodetabek,
+    form.luarJabodetabek,
+    form.modern,
+    form.tradisional,
+    form.warehouse,
+    form.whz,
+  ].some((v) => v && String(v).trim() !== "");
+
+  if (!hasKategori)
+    errors.push("Kategori Area / Channel");
+
+  if (!form.jenisData)
+    errors.push("Jenis Data");
+
+  return errors;
+};
+
+
 const handleSubmitAll = async (e: React.FormEvent) => {
   e.preventDefault();
 
+  
+    // ===============================
+  // 🔍 VALIDASI SEMUA FORM DULU
+  // ===============================
+  for (let i = 0; i < formList.length; i++) {
+    const errors = validateForm(formList[i]);
+
+    if (errors.length > 0) {
+      toast.error(
+        `Form #${i + 1} belum lengkap: ${errors.join(", ")}`
+      );
+
+      // 🔥 ARAHKAN USER KE FORM YANG SALAH
+      setTimeout(() => {
+        const el = document.querySelectorAll("details")[i];
+        el?.setAttribute("open", "true");
+        el?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+
+      return; // ⛔ STOP TOTAL
+    }
+  }
+
+  
   const loadingToast = toast.loading("⏳ Menyimpan semua data...");
 
   try {
