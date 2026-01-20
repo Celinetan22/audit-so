@@ -3358,59 +3358,6 @@ setDataList((prev) =>
 
 
 
-  const handleCancelEdit = () => {
-    setEditIndex(null);
-    setEditData(null);
-  };
-
-const handleEditChange = (
-  e: React.ChangeEvent<
-    HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-  >
-) => {
-  const { name, value } = e.target;
-
-  if (!editData) return;
-
-  // ✅ Kalau field yang diubah adalah "tanggal"
-  if (name === "tanggal") {
-    // Ambil bulan dan tahun dari editData (pastikan ada di object-nya)
-    const bulan = editData.bulan || "";
-    const tahun = editData.tahun || "";
-
-    // Hitung minggu otomatis
-    const mingguOtomatis = getWeekOfMonth(value, bulan, tahun);
-
-    // Update tanggal dan minggu sekaligus
-    setEditData({
-      ...editData,
-      tanggal: value,
-      minggu: mingguOtomatis,
-    });
-
-    return; // ⛔ keluar, biar gak lanjut ke bawah
-  }
-
-  // ✨ Default update field biasa
-  setEditData({
-    ...editData,
-    [name]: value,
-  });
-};
-
-
-  const handleEditPicCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { value, checked } = e.target;
-    if (editData) {
-      let newPic = [...editData.pic];
-      if (checked) {
-        if (!newPic.includes(value)) newPic.push(value);
-      } else {
-        newPic = newPic.filter((p) => p !== value);
-      }
-      setEditData({ ...editData, pic: newPic });
-    }
-  };
 
 // Toggle Status langsung
 const handleToggleStatus = async (
