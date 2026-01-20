@@ -3440,82 +3440,33 @@ const handleToggleStatus = async (
 
 
 const exportToExcel = () => {
- const filteredData = dataList
-  .filter((d) => (statusTab === "" ? true : d.status === statusTab))
-  .filter((d) =>
-    searchPicUpdatePlan === ""
-      ? true
-      : Array.isArray(d.pic)
-      ? d.pic.includes(searchPicUpdatePlan)
-      : d.pic === searchPicUpdatePlan
-  )
-  .filter((d) =>
-    selectedYearUpdatePlan === ""
-      ? true
-      : d.tahun === selectedYearUpdatePlan
-  )
-  .filter((d) =>
-    selectedBulanUpdatePlan === ""
-      ? true
-      : d.bulan === selectedBulanUpdatePlan
-  )
-  // 🔥 FILTER TANGGAL (AKHIRNYA NYAMBUNG)
- .filter((d) => {
-  if (!filterTanggalAwal && !filterTanggalAkhir) return true;
-
-  const range = parseTanggalRange(d.tanggal_estimasi_full);
-  if (!range) return false;
-
-  const filterStart = filterTanggalAwal
-    ? new Date(new Date(filterTanggalAwal).setHours(0, 0, 0, 0))
-    : null;
-
-  const filterEnd = filterTanggalAkhir
-    ? new Date(new Date(filterTanggalAkhir).setHours(23, 59, 59, 999))
-    : null;
-
-  // 🔥 OVERLAP CHECK
-  if (filterStart && range.end < filterStart) return false;
-  if (filterEnd && range.start > filterEnd) return false;
-
-  return true;
-})
-
-
-  .filter((d) =>
-    selectedKategoriUpdatePlan === ""
-      ? true
-      : Boolean(d[selectedKategoriUpdatePlan as keyof AuditData])
-  );
-
+  const filteredData = filteredAndSortedUpdatePlanData;
 
   if (filteredData.length === 0) {
     toast.error("Tidak ada data untuk diexport!");
     return;
   }
-                                                                                                                                                                                                                                                                 
-const exportData = filteredData.map((d) => ({
-  "No Laporan": d.no_laporan || "",
-  "Tanggal Estimasi": d.tanggal_estimasi_full || "",
-  "Realisasi": d.tanggal_realisasi_full || "",
-  "Minggu": d.minggu || "",
-  "PIC": Array.isArray(d.pic) ? d.pic.join(", ") : d.pic || "",
-  "Team": Array.isArray(d.team) ? d.team.join(", ") : d.team || "",
-  "Perusahaan": d.company || "",
-  "Jabodetabek": d.jabodetabek || "",
-  "Luar Jabodetabek": d.luarJabodetabek || "",
-  "Cabang": d.cabang || "",
-    // 🔥 ANAK CABANG (BARU)
-  "Anak Cabang": Array.isArray(d.anakCabang)
-    ? d.anakCabang.join(", ")
-    : d.anakCabang || "",
-  "Warehouse": d.warehouse || "",
-  "Traditional": d.tradisional || "",
-  "Modern": d.modern || "",
-  "WH-Z": d.whz || "",
-  "Status": d.status || "Belum",
-}));
 
+  const exportData = filteredData.map((d) => ({
+    "No Laporan": d.no_laporan || "",
+    "Tanggal Estimasi": d.tanggal_estimasi_full || "",
+    "Realisasi": d.tanggal_realisasi_full || "",
+    "Minggu": d.minggu || "",
+    "PIC": Array.isArray(d.pic) ? d.pic.join(", ") : d.pic || "",
+    "Team": Array.isArray(d.team) ? d.team.join(", ") : d.team || "",
+    "Perusahaan": d.company || "",
+    "Jabodetabek": d.jabodetabek || "",
+    "Luar Jabodetabek": d.luarJabodetabek || "",
+    "Cabang": d.cabang || "",
+    "Anak Cabang": Array.isArray(d.anakCabang)
+      ? d.anakCabang.join(", ")
+      : d.anakCabang || "",
+    "Warehouse": d.warehouse || "",
+    "Traditional": d.tradisional || "",
+    "Modern": d.modern || "",
+    "WH-Z": d.whz || "",
+    "Status": d.status || "Belum",
+  }));
 
 
 
