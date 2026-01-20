@@ -983,18 +983,34 @@ const handleBarClick = (payload: any) => {
 };
 
 
-
-
 const isAreaChannelDisabled = (
   formData: any,
   currentGroup: keyof typeof AREA_CHANNEL_GROUPS
 ) => {
+  // 🔥 Ambil semua value kategori
+  const allValues = Object.values(AREA_CHANNEL_GROUPS)
+    .flat()
+    .map((key) => formData[key])
+    .filter((val) => {
+      if (Array.isArray(val)) return val.length > 0;
+      return val != null && String(val).trim() !== "";
+    });
+
+  // ✅ JIKA BELUM ADA SATUPUN YANG DIPILIH → SEMUA UNLOCK
+  if (allValues.length === 0) return false;
+
+  // 🔒 Jika SUDAH ADA pilihan, cek apakah dari group lain
   return Object.entries(AREA_CHANNEL_GROUPS).some(
     ([group, fields]) =>
       group !== currentGroup &&
-      fields.some((f) => formData[f]?.toString().trim() !== "")
+      fields.some((f) => {
+        const v = formData[f];
+        if (Array.isArray(v)) return v.length > 0;
+        return v != null && String(v).trim() !== "";
+      })
   );
 };
+
 
 
 
