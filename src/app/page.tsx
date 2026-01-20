@@ -794,6 +794,7 @@ const [selectedMonthForNo, setSelectedMonthForNo] = useState<string>("");
 const [approvalTab, setApprovalTab] = useState<"pending" | "approved">("pending");
 const [cabangs, setCabangs] = useState<Cabang[]>([]);
 const fetchCabangsTree = async () => {
+  
   const { data } = await supabase.from("cabangs").select("*").order("id");
   if (!data) return;
 
@@ -2333,7 +2334,6 @@ const handleSubmitAll = async (e: React.FormEvent) => {
 
   try {
     for (const form of formList) {
-
       // ===============================
       //            VALIDASI
       // ===============================
@@ -2353,52 +2353,51 @@ const handleSubmitAll = async (e: React.FormEvent) => {
       }
 
       // ===============================
-      //     BULAN & TAHUN (FIX GLOBAL)
+      //     BULAN & TAHUN
       // ===============================
-const yearShort = form.tahun.slice(2);
-const monthIndex = monthOrder.findIndex(
-  (b) => b.toLowerCase() === form.bulan.toLowerCase()
-);
+      const yearShort = form.tahun.slice(2);
 
-const monthNum = String(monthIndex + 1).padStart(2, "0");
-   // ===============================
-//     GENERATE NO LAPORAN (FIX)
-// ===============================
-let noLaporan = "";
+      const monthIndex = monthOrder.findIndex(
+        (b) => b.toLowerCase() === form.bulan.toLowerCase()
+      );
 
-// 🔥 PREFIX
-const prefix =
-  form.jenisData === "rekon"
-    ? "RN"
-    : form.jenisData === "visit"
-    ? "SOV"
-    : "SONV";
+      if (monthIndex === -1) {
+        toast.error("Bulan tidak valid!");
+        continue;
+      }
 
-// 🔥 KEY UNIK UNTUK COUNTER
-const counterKey = `${prefix}-${yearShort}-${monthNum}`;
+      const monthNum = String(monthIndex + 1).padStart(2, "0");
 
-if (!noCounterMap[counterKey]) {
-  const { data, error } = await supabase
-    .from("audit_full")
-    .select("id", { count: "exact" })
-    .ilike("no_laporan", `${prefix}/${yearShort}/${monthNum}/%`);
+      // ===============================
+      //     GENERATE NO LAPORAN
+      // ===============================
+      const prefix =
+        form.jenisData === "rekon"
+          ? "RN"
+          : form.jenisData === "visit"
+          ? "SOV"
+          : "SONV";
 
-  if (error) {
-    toast.error("Gagal generate nomor laporan");
-    continue;
-  }
+      const counterKey = `${prefix}-${yearShort}-${monthNum}`;
 
-  noCounterMap[counterKey] = data?.length ?? 0;
-}
+      if (!noCounterMap[counterKey]) {
+        const { data, error } = await supabase
+          .from("audit_full")
+          .select("id", { count: "exact" })
+          .ilike("no_laporan", `${prefix}/${yearShort}/${monthNum}/%`);
 
-// 🔥 TAMBAH COUNTER
-noCounterMap[counterKey] += 1;
+        if (error) {
+          toast.error("Gagal generate nomor laporan");
+          continue;
+        }
 
-const next = String(noCounterMap[counterKey]).padStart(3, "0");
+        noCounterMap[counterKey] = data?.length ?? 0;
+      }
 
-noLaporan = `${prefix}/${yearShort}/${monthNum}/${next}`;
+      noCounterMap[counterKey] += 1;
 
-
+      const next = String(noCounterMap[counterKey]).padStart(3, "0");
+      const noLaporan = `${prefix}/${yearShort}/${monthNum}/${next}`;
 
       // ===============================
       //        FORMAT TANGGAL
@@ -2438,42 +2437,41 @@ noLaporan = `${prefix}/${yearShort}/${monthNum}/${next}`;
       const finalTeam = allPIC.length === 1 ? allPIC : [];
 
       // ===============================
-      //         PAYLOAD (FINAL)
+      //         PAYLOAD
       // ===============================
-const payload = {
-  no_laporan: noLaporan,
-  pic: allPIC,
-  team: finalTeam,
+      const payload = {
+        no_laporan: noLaporan,
+        pic: allPIC,
+        team: finalTeam,
 
-  bulan: form.bulan.toUpperCase(),
-  minggu: form.minggu,
-  tanggal_estimasi_full: tanggalEstimasiFull,
+        bulan: form.bulan.toUpperCase(),
+        minggu: form.minggu,
+        tanggal_estimasi_full: tanggalEstimasiFull,
 
-  tahun: form.tahun,
-  jabodetabek: form.jabodetabek,
-  luar_jabodetabek: form.luarJabodetabek,
+        tahun: form.tahun,
 
-  cabang: form.cabang,
-  anak_cabang: form.anakCabang?.trim() || null, // 🔥 FIX UTAMA
+        jabodetabek: form.jabodetabek,
+        luar_jabodetabek: form.luarJabodetabek,
 
-  warehouse: form.warehouse,
-  tradisional: form.tradisional,
-  modern: form.modern,
-  whz: form.whz,
+        cabang: form.cabang,
+        anak_cabang: form.anakCabang?.trim() || null,
 
-  description: form.notes,
-  status: "Belum",
-  company: form.company,
-  jenisData: form.jenisData,
-  created_at: new Date().toISOString(),
-};
+        warehouse: form.warehouse,
+        tradisional: form.tradisional,
+        modern: form.modern,
+        whz: form.whz,
 
-
+        description: form.notes,
+        status: "Belum",
+        company: form.company,
+        jenisData: form.jenisData,
+        created_at: new Date().toISOString(),
+      };
 
       // ===============================
       //        INSERT DB
       // ===============================
-      const { data, error } = await supabase
+      const { data: insertedRows, error } = await supabase
         .from("audit_full")
         .insert([payload])
         .select();
@@ -2484,23 +2482,20 @@ const payload = {
         continue;
       }
 
-      const newReport = data?.[0];
-      setDataList((prev) => [newReport, ...prev]);
+      const raw = insertedRows?.[0];
+      if (!raw) continue;
 
       // ===============================
-      //        APPROVAL
+      //        NORMALISASI (UI)
       // ===============================
-      const approvers = ["Aprilia", "NOVIE", "Andreas"];
-      const approvalData = approvers.map((name, idx) => ({
-        report_id: newReport.id,
-        step: idx + 1,
-        user: name,
-        checked: false,
-        note: "Menunggu persetujuan",
-        status: "Belum",
-      }));
+      const normalizedNewReport = {
+        ...raw,
+        luarJabodetabek: raw.luar_jabodetabek ?? "",
+        anakCabang: raw.anak_cabang ?? "",
+        jenisData: raw.jenis_data ?? raw.jenisData ?? "",
+      };
 
-      await supabase.from("approvals_status").insert(approvalData);
+      setDataList((prev) => [normalizedNewReport, ...prev]);
     }
 
     toast.success("✅ Semua data berhasil disimpan!", { id: loadingToast });
@@ -2508,35 +2503,34 @@ const payload = {
     // ===============================
     //        RESET FORM
     // ===============================
-   setFormList([
-  {
-    pic: [],
-    team: [],
-    customPic: "",
-    bulan: "",
-    minggu: "",
-    tanggal: "",
-    tahun: new Date().getFullYear().toString(),
-    jabodetabek: "",
-    luarJabodetabek: "",
-    cabang: "",
-    anakCabang: "",
-    warehouse: "",
-    tradisional: "",
-    modern: "",
-    whz: "",
-    company: "",
-    jenisData: "",
-    status: "Belum",
-
-    // 🔥 TAMBAHKAN
-    notes: "",
-  },
-]);
-
+    setFormList([
+      {
+        pic: [],
+        team: [],
+        customPic: "",
+        bulan: "",
+        minggu: "",
+        tanggal: "",
+        tahun: new Date().getFullYear().toString(),
+        jabodetabek: "",
+        luarJabodetabek: "",
+        cabang: "",
+        anakCabang: "",
+        warehouse: "",
+        tradisional: "",
+        modern: "",
+        whz: "",
+        company: "",
+        jenisData: "",
+        status: "Belum",
+        notes: "",
+      },
+    ]);
   } catch (err) {
     console.error("❌ Fatal submit error:", err);
     toast.error("Gagal menyimpan data!", { id: loadingToast });
+  } finally {
+    toast.dismiss(loadingToast);
   }
 };
 
