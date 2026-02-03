@@ -105,6 +105,7 @@ type AuditData = {
   tanggal_estimasi_full?: string | null;
   tanggal_realisasi_full?: string | null;
   // ⬆⬆⬆
+   rangeHari: number;
   tahun?: string; 
   realisasi?: string;
   realisasi_bulan?: string; 
@@ -664,7 +665,7 @@ const monthOptions = [
   { label: "Desember", value: "12" },
 ];
 
-
+const [rangeHari, setRangeHari] = useState<number>(0);
 
 const [filterTanggalRange, setFilterTanggalRange] =
   useState<[Date | null, Date | null]>([null, null]);
@@ -1226,6 +1227,8 @@ const leaderPerBulanChart = Object.values(leaderPerBulan).sort(
   (a: any, b: any) =>
     monthOrder.indexOf(a.bulan) - monthOrder.indexOf(b.bulan)
 );
+
+
 
 
 const [selectedBulanTEAM, setSelectedBulanTEAM] = useState("ALL");
@@ -1932,6 +1935,7 @@ const [formList, setFormList] = useState<AuditData[]>([
     bulan: "",
     minggu: "",
     tanggal: "",
+    rangeHari: 0,
     tahun: new Date().getFullYear().toString(),
     jabodetabek: "",
     luarJabodetabek: "",
@@ -2093,38 +2097,46 @@ const handleChange = (
     const current = { ...updated[index] };
 
     // === 🗓️ Jika mengubah tanggalAwal / tanggalAkhir ===
-    if (name === "tanggalAwal" || name === "tanggalAkhir") {
-      current[name] = value;
+// === 🗓️ Jika mengubah tanggalAwal / tanggalAkhir ===
+if (name === "tanggalAwal" || name === "tanggalAkhir") {
+  current[name] = value;
 
-      // Gabungkan jadi "5 - 10" untuk field `tanggal`
-      current.tanggal =
-        current.tanggalAwal && current.tanggalAkhir
-          ? `${current.tanggalAwal} - ${current.tanggalAkhir}`
-          : current.tanggalAwal || current.tanggalAkhir || "";
+  const awal = current.tanggalAwal;
+  const akhir = current.tanggalAkhir;
 
-      // Hitung minggu otomatis
-      if (current.bulan && current.tahun) {
-        const awal = current.tanggalAwal;
-        const akhir = current.tanggalAkhir;
+  // 🔢 RANGE HARI
+  current.rangeHari = hitungRangeHari(awal, akhir);
 
-        if (awal && akhir) {
-          const mingguAwal = getWeekOfMonth(awal, current.bulan, current.tahun);
-          const mingguAkhir = getWeekOfMonth(akhir, current.bulan, current.tahun);
-          current.minggu =
-            mingguAwal === mingguAkhir
-              ? mingguAwal
-              : `${mingguAwal}-${mingguAkhir}`;
-        } else if (awal || akhir) {
-          const referensi = (awal || akhir) as string;
-          current.minggu = getWeekOfMonth(referensi, current.bulan, current.tahun);
-        } else {
-          current.minggu = "";
-        }
-      }
+  // 🔗 Gabungkan tanggal (legacy support)
+  current.tanggal =
+    awal && akhir ? `${awal} - ${akhir}` : awal || akhir || "";
 
-      updated[index] = current;
-      return updated;
+  // 🗓️ HITUNG MINGGU OTOMATIS
+  if (current.bulan && current.tahun) {
+    if (awal && akhir) {
+      const mingguAwal = getWeekOfMonth(awal, current.bulan, current.tahun);
+      const mingguAkhir = getWeekOfMonth(akhir, current.bulan, current.tahun);
+
+      current.minggu =
+        mingguAwal === mingguAkhir
+          ? mingguAwal
+          : `${mingguAwal}-${mingguAkhir}`;
+    } else if (awal || akhir) {
+      const referensi = (awal || akhir) as string;
+      current.minggu = getWeekOfMonth(
+        referensi,
+        current.bulan,
+        current.tahun
+      );
+    } else {
+      current.minggu = "";
     }
+  }
+
+  updated[index] = current;
+  return updated;
+}
+
 
 
     // === 🆙 Auto-uppercase untuk beberapa field ===
@@ -2374,8 +2386,12 @@ const validateForm = (form: any) => {
   if (!form.bulan)
     errors.push("Bulan");
 
-  if (!form.tanggalAwal && !form.tanggalAkhir)
-    errors.push("Periode Tanggal");
+if (!form.tanggalAwal || !form.tanggalAkhir)
+  errors.push("Periode Tanggal");
+
+if (form.rangeHari <= 0)
+  errors.push("Range Hari");
+
 
   // wajib pilih SALAH SATU kategori
   const hasKategori = [
@@ -2557,9 +2573,6 @@ const finalTeam = Array.from(
   new Set(form.team)
 );
 
-      // ===============================
-      // 📦 PAYLOAD
-      // ===============================
       const payload = {
         no_laporan: noLaporan,
         pic: finalPIC,
@@ -2633,6 +2646,7 @@ const finalTeam = Array.from(
         minggu: "",
         tanggal: "",
         tahun: new Date().getFullYear().toString(),
+         rangeHari: 0,
         jabodetabek: "",
         luarJabodetabek: "",
         cabang: "",
@@ -2747,6 +2761,24 @@ const parseDDMMYYYY = (val?: string | null): Date | null => {
 
   const [, d, m, y] = match;
   return new Date(Number(y), Number(m) - 1, Number(d));
+};
+
+const hitungRangeHari = (awal?: string, akhir?: string) => {
+  // ❌ tidak ada tanggal sama sekali
+  if (!awal && !akhir) return 0;
+
+  // ✅ hanya tanggal awal
+  if (awal && !akhir) return 1;
+
+  // ❌ hanya tanggal akhir (opsional: kamu bisa 0 atau 1)
+  if (!awal && akhir) return 1;
+
+  const start = Number(awal);
+  const end = Number(akhir);
+
+  if (end < start) return 0;
+
+  return end - start + 1; // inklusif
 };
 
 
@@ -3926,6 +3958,22 @@ useEffect(() => {
   setTeamOptions(picOptions);
 }, [picOptions]);
 
+useEffect(() => {
+  if (tanggalAwal && tanggalAkhir) {
+    const start = new Date(tanggalAwal);
+    const end = new Date(tanggalAkhir);
+
+    if (end >= start) {
+      const diffTime = end.getTime() - start.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      setRangeHari(diffDays);
+    } else {
+      setRangeHari(0);
+    }
+  } else {
+    setRangeHari(0);
+  }
+}, [tanggalAwal, tanggalAkhir]);
 
 
 
@@ -5367,6 +5415,17 @@ onClick={(data: any) => {
           </div>
         </div>
 
+  {/* Range Hari */}
+  <div>
+    <label className="text-sm font-medium">Range Hari</label>
+    <input
+      type="number"
+      value={formData.rangeHari}
+      readOnly
+      className="w-full border rounded-lg px-3 py-2 bg-gray-100"
+    />
+  </div>
+
         {/* === Minggu === */}
         <div className="mt-4">
           <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -5679,22 +5738,29 @@ onClick={(data: any) => {
     setFormList([
       ...formList,
       {
-        pic: [],
-        team: [],  // ← FIX: harus array
-        bulan: "",
-        minggu: "",
-        tanggal: "",
-        tahun: new Date().getFullYear().toString(),
-        jabodetabek: "",
-        luarJabodetabek: "",
-        cabang: "",
-        warehouse: "",
-        tradisional: "",
-        modern: "",
-        whz: "",
-        company: "",
-        jenisData: "",
-        status: "Belum",
+  pic: [],
+  team: [],
+  customPic: "",
+  bulan: "",
+  minggu: "",
+ tanggal: "",
+  tanggalAwal: "",
+  tanggalAkhir: "",
+  rangeHari: 0,
+
+  tahun: new Date().getFullYear().toString(),
+  jabodetabek: "",
+  luarJabodetabek: "",
+  cabang: "",
+  anakCabang: "",
+  warehouse: "",
+  tradisional: "",
+  modern: "",
+  whz: "",
+  company: "",
+  jenisData: "",
+  status: "Belum",
+  notes: "",
       },
     ])
   }
@@ -6160,10 +6226,13 @@ const newDataList = dataList.map((d) =>
   Tanggal Realisasi
 </th>
 
+<th className="border border-gray-200 p-2 bg-yellow-50 font-medium min-w-[120px] text-center">
+  Range Hari Estimasi
+</th>
 
 
            <th className="border border-gray-200 p-2">Minggu</th>
-       {/* 🌟 KOLUM BARU: RANGE HARI */}
+
 
 
 
@@ -6295,6 +6364,18 @@ paginatedUpdatePlanData.map((d, i) => (
   )}
 </td>
 
+{/* Range Hari */}
+<td className="p-2 border border-gray-300">
+  <div className="flex items-center justify-center w-full">
+    <div className="w-[100px] px-3 py-2 bg-yellow-50 rounded-xl border border-yellow-200 shadow-sm text-center">
+      <span className="text-sm font-semibold text-yellow-800">
+        {typeof d.rangeHari === "number"
+          ? `${d.rangeHari} hari`
+          : "1 hari"}
+      </span>
+    </div>
+  </div>
+</td>
 
 
 
